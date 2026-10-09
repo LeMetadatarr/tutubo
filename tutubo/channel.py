@@ -15,6 +15,26 @@ from tutubo.transport import default_session
 
 logger = logging.getLogger(__name__)
 
+
+def _continuation_token(item: dict) -> Optional[str]:
+    """Return the browse continuation token held by *item*, or ``None``.
+
+    YouTube serves the token either as a ``continuationItemRenderer`` or, in the
+    newer view-model layout, as a ``continuationItemViewModel``.
+    """
+    renderer = item.get("continuationItemRenderer")
+    if renderer:
+        return (renderer.get("continuationEndpoint", {})
+                        .get("continuationCommand", {})
+                        .get("token"))
+    view_model = item.get("continuationItemViewModel")
+    if view_model:
+        return (view_model.get("continuationCommand", {})
+                          .get("innertubeCommand", {})
+                          .get("continuationCommand", {})
+                          .get("token"))
+    return None
+
 _BROWSE_URL = "https://www.youtube.com/youtubei/v1/browse"
 _BROWSE_CONTEXT = {
     "client": {"clientName": "WEB", "clientVersion": "2.20200720.00.02"}
@@ -179,35 +199,43 @@ class Playlist:
     def _extract_video_ids(raw: str) -> Tuple[List[str], Optional[str]]:
         """Parse a playlist response and return (video_ids, continuation_token)."""
         data = json.loads(raw) if isinstance(raw, str) else raw
+        continuation = None
+        items = None
         try:
-            section = data["contents"]["twoColumnBrowseResultsRenderer"]["tabs"][0][
+            sections = data["contents"]["twoColumnBrowseResultsRenderer"]["tabs"][0][
                 "tabRenderer"]["content"]["sectionListRenderer"]["contents"]
-            try:
-                items = section[0]["itemSectionRenderer"]["contents"][0][
-                    "playlistVideoListRenderer"]["contents"]
-            except (KeyError, IndexError):
-                items = section[1]["itemSectionRenderer"]["contents"][0][
-                    "playlistVideoListRenderer"]["contents"]
         except (KeyError, IndexError, TypeError):
+            sections = None
+        for section in sections or []:
+            continuation = continuation or _continuation_token(section)
+            if items is not None:
+                continue
+            try:
+                contents = section["itemSectionRenderer"]["contents"]
+            except (KeyError, TypeError):
+                continue
+            if contents and "playlistVideoListRenderer" in contents[0]:
+                items = contents[0]["playlistVideoListRenderer"]["contents"]
+            elif any("lockupViewModel" in c for c in contents):
+                items = contents
+        if items is None:
             try:
                 items = data["onResponseReceivedActions"][0][
                     "appendContinuationItemsAction"]["continuationItems"]
             except (KeyError, IndexError, TypeError):
                 return [], None
 
-        continuation = None
-        try:
-            token = items[-1]["continuationItemRenderer"][
-                "continuationEndpoint"]["continuationCommand"]["token"]
-            continuation = token
-            items = items[:-1]
-        except (KeyError, IndexError):
-            pass
+        if items:
+            token = _continuation_token(items[-1])
+            if token:
+                continuation = token
+                items = items[:-1]
 
         ids = []
         seen = set()
         for item in items:
-            vid_id = item.get("playlistVideoRenderer", {}).get("videoId")
+            vid_id = (item.get("playlistVideoRenderer", {}).get("videoId")
+                      or item.get("lockupViewModel", {}).get("contentId"))
             if vid_id and vid_id not in seen:
                 ids.append(vid_id)
                 seen.add(vid_id)
@@ -553,14 +581,9 @@ class Channel:
         if not items:
             return [], None
 
-        continuation = None
-        try:
-            token = items[-1]["continuationItemRenderer"][
-                "continuationEndpoint"]["continuationCommand"]["token"]
-            continuation = token
+        continuation = _continuation_token(items[-1])
+        if continuation:
             items = items[:-1]
-        except (KeyError, IndexError):
-            pass
 
         videos = []
         seen = set()
@@ -705,14 +728,9 @@ class Channel:
         except (KeyError, IndexError, TypeError):
             pass
 
-        continuation = None
-        try:
-            token = playlists[-1]["continuationItemRenderer"][
-                "continuationEndpoint"]["continuationCommand"]["token"]
-            continuation = token
+        continuation = _continuation_token(playlists[-1]) if playlists else None
+        if continuation:
             playlists = playlists[:-1]
-        except (KeyError, IndexError):
-            pass
 
         ids = []
         for p in playlists:
