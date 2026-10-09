@@ -10,7 +10,7 @@ Recording fixtures
 ------------------
 Set ``TUTUBO_RECORD_DIR=test/fixtures`` and run:
 
-    python scripts/record_fixtures.py
+    python test/record_fixtures.py
 
 or any script that exercises tutubo.  All innertube responses will be
 written to that directory automatically.
@@ -56,7 +56,7 @@ def patch_innertube(monkeypatch):
     prefixed with ``search_``.  Example: query ``"rob zombie"`` → ``search_rob_zombie.json``.
 
     If a matching fixture does not exist the test will raise FileNotFoundError —
-    run ``scripts/record_fixtures.py`` to capture it first.
+    run ``test/record_fixtures.py`` to capture it first.
     """
     import tutubo._innertube as _it
 
@@ -74,7 +74,7 @@ def patch_innertube(monkeypatch):
             raise FileNotFoundError(
                 f"No fixture for query {query!r}.\n"
                 f"Expected: {path}\n"
-                "Run scripts/record_fixtures.py to capture it."
+                "Run test/record_fixtures.py to capture it."
             )
         return json.loads(path.read_text())
 
@@ -175,15 +175,31 @@ def patch_channel_data(monkeypatch):
             raise FileNotFoundError(
                 f"No channel fixture for {url!r}\n"
                 f"Expected: {fixture}\n"
-                "Run scripts/record_fixtures.py to capture it."
+                "Run test/record_fixtures.py to capture it."
             )
         return json.loads(fixture.read_text())
 
     class _FakePostResp:
         text = _EMPTY_CONT
 
+        def raise_for_status(self):
+            pass
+
+    class _FakeSession:
+        def get(self, *a, **kw):
+            return _FakePostResp()
+
+        def post(self, *a, **kw):
+            return _FakePostResp()
+
     monkeypatch.setattr(_ch.Channel, "_get_data", _fake_get_data)
-    monkeypatch.setattr(_ch.requests, "post", lambda *a, **kw: _FakePostResp())
+    monkeypatch.setattr(_ch, "default_session", lambda: _FakeSession())
+    # ``yt_api_key`` would otherwise trigger a real HTTP fetch via ``_get_html``
+    # to scrape ytcfg; short-circuit it for offline fixture-driven tests.
+    monkeypatch.setattr(
+        _ch.Channel, "yt_api_key",
+        property(lambda self: "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"),
+    )
 
 
 @pytest.fixture
@@ -211,11 +227,18 @@ def patch_channel_requests(monkeypatch):
             raise FileNotFoundError(
                 f"No channel fixture for {url!r}.\n"
                 f"Expected: {html_path}\n"
-                "Run scripts/record_fixtures.py to capture it."
+                "Run test/record_fixtures.py to capture it."
             )
         return _FakeResponse(html_path.read_text())
 
-    monkeypatch.setattr(_ch.requests, "get", _fake_get)
+    class _FakeSession:
+        def get(self, url, **kwargs):
+            return _fake_get(url, **kwargs)
+
+        def post(self, *a, **kw):
+            return _FakeResponse("")
+
+    monkeypatch.setattr(_ch, "default_session", lambda: _FakeSession())
 
 
 @pytest.fixture

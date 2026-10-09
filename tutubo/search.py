@@ -1,18 +1,29 @@
+"""Search facades for YouTube and YouTube Music.
+
+``YoutubeSearch`` wraps the public youtube.com search endpoint and yields
+typed previews / full objects.  ``YoutubeMusicSearch`` wraps the YT Music API
+(via ``ytmusicapi``) and yields music-domain entities.
+"""
+from __future__ import annotations
+
 import enum
+from typing import Iterator, Optional
 
 from tutubo._innertube import search as _innertube_search
 from tutubo.channel import Channel, Video, Playlist
 from tutubo.models import (
-    YoutubePreview, VideoPreview, RelatedVideoPreview, ChannelPreview,
+    VideoPreview, RelatedVideoPreview, ChannelPreview,
     PlaylistPreview, YoutubeMixPreview, RelatedSearch,
 )
 from tutubo.ytmus import (
     MusicTrack, MusicVideo, MusicAlbum, MusicPlaylist, MusicArtist,
-    search_yt_music,
+    search_yt_music as search_yt_music,  # re-exported via tutubo package
 )
 
 
 class SearchType(enum.IntEnum):
+    """Filter applied while iterating raw search-result sections."""
+
     YOUTUBE = enum.auto()
     VIDEOS = enum.auto()
     RELATED_VIDEOS = enum.auto()
@@ -147,27 +158,33 @@ class YoutubeSearch:
     # Core
     # ------------------------------------------------------------------
 
-    def __init__(self, query, preview=True, thumbnail_url=""):
-        self.query = query
-        self.preview = preview
-        self.thumbnail_url = thumbnail_url
-        self._initial_results = None
+    def __init__(self, query: str, preview: bool = True, thumbnail_url: str = "") -> None:
+        self.query: str = query
+        self.preview: bool = preview
+        self.thumbnail_url: str = thumbnail_url
+        self._initial_results: Optional[dict] = None
 
-    def fetch_query(self, continuation=None) -> dict:
+    def fetch_query(self, continuation: Optional[str] = None) -> dict:
+        """Run the search (or fetch the next page) and return the raw response."""
         result = _innertube_search(self.query, continuation)
         if not self._initial_results:
             self._initial_results = result
         return result
 
     @property
-    def as_dict(self):
+    def as_dict(self) -> dict:
         return {'query': self.query, 'image': self.thumbnail_url}
 
     # ------------------------------------------------------------------
     # Low-level iteration
     # ------------------------------------------------------------------
 
-    def iterate_youtube(self, max_res=-1, search_type=SearchType.YOUTUBE):
+    def iterate_youtube(self, max_res: int = -1, search_type: SearchType = SearchType.YOUTUBE) -> Iterator:
+        """Yield up to ``max_res`` raw results matching ``search_type``.
+
+        When ``preview`` is False each item is upgraded to a full object via
+        :meth:`get`, which costs an extra HTTP request per item.
+        """
         idx = 0
         for r in self._iterate_and_parse(search_type=search_type):
             idx += 1
@@ -177,7 +194,8 @@ class YoutubeSearch:
                 r = r.get()
             yield r
 
-    def _iterate_and_parse(self, continuation=None, search_type=SearchType.ALL):
+    def _iterate_and_parse(self, continuation: Optional[str] = None,
+                           search_type: SearchType = SearchType.ALL) -> Iterator:
         raw_results = self.fetch_query(continuation)
 
         try:
@@ -260,32 +278,38 @@ class YoutubeSearch:
     # Typed result iterators
     # ------------------------------------------------------------------
 
-    def iterate_videos(self, max_res=-1):
+    def iterate_videos(self, max_res: int = -1) -> Iterator:
+        """Yield ``VideoPreview`` (or ``Video`` if ``preview=False``) results."""
         for v in self.iterate_youtube(max_res):
             if isinstance(v, (Video, VideoPreview)):
                 yield v
 
-    def iterate_related_videos(self, max_res=-1):
+    def iterate_related_videos(self, max_res: int = -1) -> Iterator:
+        """Yield videos surfaced inside related-video shelves."""
         for v in self.iterate_youtube(max_res):
             if isinstance(v, RelatedVideoPreview):
                 yield v
 
-    def iterate_channels(self, max_res=-1):
+    def iterate_channels(self, max_res: int = -1) -> Iterator:
+        """Yield channel results."""
         for v in self.iterate_youtube(max_res):
             if isinstance(v, (Channel, ChannelPreview)):
                 yield v
 
-    def iterate_playlists(self, max_res=-1):
+    def iterate_playlists(self, max_res: int = -1) -> Iterator:
+        """Yield playlist results."""
         for v in self.iterate_youtube(max_res):
             if isinstance(v, (PlaylistPreview, Playlist)):
                 yield v
 
-    def iterate_mixes(self, max_res=-1):
+    def iterate_mixes(self, max_res: int = -1) -> Iterator:
+        """Yield YouTube Mix (radio) results."""
         for v in self.iterate_youtube(max_res):
             if isinstance(v, YoutubeMixPreview):
                 yield v
 
-    def iterate_queries(self, max_res=-1):
+    def iterate_queries(self, max_res: int = -1) -> Iterator:
+        """Yield related search-query suggestions."""
         for v in self.iterate_youtube(max_res):
             if isinstance(v, RelatedSearch):
                 yield v
@@ -294,7 +318,7 @@ class YoutubeSearch:
     # Content-type filtered iterators
     # ------------------------------------------------------------------
 
-    def iterate_by_content_type(self, content_type, max_res=-1):
+    def iterate_by_content_type(self, content_type: "object", max_res: int = -1) -> Iterator:
         """Yield VideoPreview objects whose classified content_type matches."""
         n = 0
         for v in self.iterate_videos():
@@ -304,89 +328,89 @@ class YoutubeSearch:
                 if 0 < max_res <= n:
                     break
 
-    def _iter_ct(self, ct_name: str, max_res: int):
-        from tutubo.content_type import ContentType
-        return self.iterate_by_content_type(ContentType[ct_name], max_res=max_res)
+    def _iter_ct(self, ct_name: str, max_res: int) -> Iterator:
+        from tutubo.classification import Category
+        return self.iterate_by_content_type(Category[ct_name], max_res=max_res)
 
-    def iterate_movies(self, max_res=-1):
+    def iterate_movies(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("MOVIE", max_res)
 
-    def iterate_short_films(self, max_res=-1):
+    def iterate_short_films(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("SHORT_FILM", max_res)
 
-    def iterate_trailers(self, max_res=-1):
+    def iterate_trailers(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("TRAILER", max_res)
 
-    def iterate_documentaries(self, max_res=-1):
+    def iterate_documentaries(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("DOCUMENTARY", max_res)
 
-    def iterate_behind_the_scenes(self, max_res=-1):
+    def iterate_behind_the_scenes(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("BEHIND_THE_SCENES", max_res)
 
-    def iterate_anime(self, max_res=-1):
+    def iterate_anime(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("ANIME", max_res)
 
-    def iterate_tv_episodes(self, max_res=-1):
+    def iterate_tv_episodes(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("TV_EPISODE", max_res)
 
-    def iterate_audiobooks(self, max_res=-1):
+    def iterate_audiobooks(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("AUDIOBOOK", max_res)
 
-    def iterate_audio_dramas(self, max_res=-1):
+    def iterate_audio_dramas(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("AUDIOBOOK", max_res)
 
-    def iterate_podcasts(self, max_res=-1):
+    def iterate_podcasts(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("PODCAST", max_res)
 
-    def iterate_stand_up(self, max_res=-1):
+    def iterate_stand_up(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("STAND_UP", max_res)
 
-    def iterate_interviews(self, max_res=-1):
+    def iterate_interviews(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("INTERVIEW", max_res)
 
-    def iterate_lectures(self, max_res=-1):
+    def iterate_lectures(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("LECTURE", max_res)
 
-    def iterate_concerts(self, max_res=-1):
+    def iterate_concerts(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("CONCERT", max_res)
 
-    def iterate_news(self, max_res=-1):
+    def iterate_news(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("NEWS", max_res)
 
-    def iterate_live_news(self, max_res=-1):
+    def iterate_live_news(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("LIVE_NEWS", max_res)
 
-    def iterate_live_radio(self, max_res=-1):
+    def iterate_live_radio(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("LIVE_RADIO", max_res)
 
-    def iterate_iptv(self, max_res=-1):
+    def iterate_iptv(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("IPTV", max_res)
 
-    def iterate_sport(self, max_res=-1):
+    def iterate_sport(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("SPORT", max_res)
 
-    def iterate_gaming(self, max_res=-1):
+    def iterate_gaming(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("GAMING", max_res)
 
-    def iterate_tutorials(self, max_res=-1):
+    def iterate_tutorials(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("TUTORIAL", max_res)
 
-    def iterate_reactions(self, max_res=-1):
+    def iterate_reactions(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("REACTION", max_res)
 
-    def iterate_compilations(self, max_res=-1):
+    def iterate_compilations(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("COMPILATION", max_res)
 
-    def iterate_kids(self, max_res=-1):
+    def iterate_kids(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("KIDS", max_res)
 
-    def iterate_music_videos(self, max_res=-1):
+    def iterate_music_videos(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("MUSIC_VIDEO", max_res)
 
-    def iterate_music_audio(self, max_res=-1):
+    def iterate_music_audio(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("MUSIC_AUDIO", max_res)
 
-    def iterate_social_clips(self, max_res=-1):
+    def iterate_social_clips(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("SOCIAL_CLIP", max_res)
 
 class YoutubeMusicSearch:
@@ -417,14 +441,16 @@ class YoutubeMusicSearch:
             print(album.title, album.year)
     """
 
-    def __init__(self, query: str):
-        self.query = query
+    def __init__(self, query: str) -> None:
+        self.query: str = query
 
     def _ytmusic(self):
+        """Return the cached ``YTMusic`` client, or ``None`` if it failed to init."""
         from tutubo.ytmus import _get_ytmus
         return _get_ytmus()
 
-    def _raw_search(self, filter_type=None):
+    def _raw_search(self, filter_type: Optional[str] = None) -> list:
+        """Call ``YTMusic.search`` with the given filter, returning [] on failure."""
         ym = self._ytmusic()
         if ym is None:
             return []
@@ -435,7 +461,7 @@ class YoutubeMusicSearch:
     # Typed iterators — each hits the API with the appropriate filter
     # ------------------------------------------------------------------
 
-    def iterate_tracks(self, max_res=-1):
+    def iterate_tracks(self, max_res: int = -1) -> Iterator:
         """Yield song results as ``MusicTrack`` (type=song) or ``MusicVideo`` (type=video)."""
         n = 0
         for r in self._raw_search("songs"):
@@ -450,7 +476,7 @@ class YoutubeMusicSearch:
             if 0 < max_res <= n:
                 break
 
-    def iterate_videos(self, max_res=-1):
+    def iterate_videos(self, max_res: int = -1) -> Iterator:
         """Yield ``MusicVideo`` results (music videos on the Music catalogue)."""
         n = 0
         for r in self._raw_search("videos"):
@@ -461,7 +487,7 @@ class YoutubeMusicSearch:
             if 0 < max_res <= n:
                 break
 
-    def iterate_albums(self, max_res=-1):
+    def iterate_albums(self, max_res: int = -1) -> Iterator:
         """Yield ``MusicAlbum`` results, enriched with full track listing."""
         ym = self._ytmusic()
         n = 0
@@ -477,7 +503,7 @@ class YoutubeMusicSearch:
             if 0 < max_res <= n:
                 break
 
-    def iterate_artists(self, max_res=-1):
+    def iterate_artists(self, max_res: int = -1) -> Iterator:
         """Yield ``MusicArtist`` results, enriched with top tracks and albums."""
         ym = self._ytmusic()
         n = 0
@@ -493,7 +519,7 @@ class YoutubeMusicSearch:
             if 0 < max_res <= n:
                 break
 
-    def iterate_playlists(self, max_res=-1):
+    def iterate_playlists(self, max_res: int = -1) -> Iterator:
         """Yield ``MusicPlaylist`` results (community playlists on YT Music)."""
         ym = self._ytmusic()
         n = 0
@@ -509,7 +535,7 @@ class YoutubeMusicSearch:
             if 0 < max_res <= n:
                 break
 
-    def iterate_all(self, max_res=-1):
+    def iterate_all(self, max_res: int = -1) -> Iterator:
         """Yield all result types in API order (mixed tracks, albums, artists, playlists)."""
         ym = self._ytmusic()
         n = 0
@@ -543,7 +569,12 @@ class YoutubeMusicSearch:
                 break
 
 
-def search_yt(query, as_dict=True, parse=False, max_res=50):
+def search_yt(query: str, as_dict: bool = True, parse: bool = False, max_res: int = 50) -> Iterator:
+    """Convenience generator: yield ``max_res`` search results for ``query``.
+
+    With ``as_dict=True`` items come out as plain dicts (``.as_dict``).
+    With ``parse=True`` previews are upgraded to full objects (extra HTTP per item).
+    """
     s = YoutubeSearch(query, preview=not parse)
     for v in s.iterate_youtube(max_res=max_res):
         if as_dict:

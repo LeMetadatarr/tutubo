@@ -1,4 +1,4 @@
-from tutubo.models import Channel
+from tutubo.channel import Channel
 
 kids = [
     "https://www.youtube.com/@hasbroOfficial",

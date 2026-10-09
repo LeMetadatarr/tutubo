@@ -1,10 +1,24 @@
+"""Lightweight preview wrappers around YouTube search-result renderer dicts.
+
+A ``*Preview`` exposes typed accessors over a raw ``...Renderer`` JSON object
+returned by the innertube search endpoint.  Calling :meth:`get` on a preview
+upgrades it to a full ``Channel`` / ``Playlist`` / ``Video`` (which performs
+additional network requests).
+"""
+from __future__ import annotations
+
+from typing import List
+
 from tutubo.channel import Video, Channel, Playlist
-from tutubo.content_type import classify_video, extract_tags, ContentType
+from tutubo.classification import Category, classify_category
+from mediavocab.text import classify_video, extract_tags
 
 
 class YoutubePreview:
-    def __init__(self, renderer_data):
-        self._raw_data = renderer_data
+    """Base class — stores the raw renderer dict that subclasses interpret."""
+
+    def __init__(self, renderer_data: dict) -> None:
+        self._raw_data: dict = renderer_data
 
 
 # ---------------------------------------------------------------------------
@@ -12,27 +26,31 @@ class YoutubePreview:
 # ---------------------------------------------------------------------------
 
 class PlaylistPreview(YoutubePreview):
-    def get(self):
+    """Preview of a regular YouTube playlist returned in search results."""
+
+    def get(self) -> Playlist:
+        """Return a full ``Playlist`` object (fetches the playlist page)."""
         return Playlist(self.playlist_url)
 
     @property
-    def title(self):
+    def title(self) -> str:
         return self._raw_data["title"]['simpleText']
 
     @property
-    def playlist_id(self):
+    def playlist_id(self) -> str:
         return self._raw_data["playlistId"]
 
     @property
-    def playlist_url(self):
+    def playlist_url(self) -> str:
         return f"https://www.youtube.com/playlist?list={self.playlist_id}"
 
     @property
-    def video_count(self):
+    def video_count(self) -> int:
         return self._raw_data.get('videoCount', 0)
 
     @property
-    def featured_videos(self):
+    def featured_videos(self) -> List[dict]:
+        """Up to a few sample videos shown alongside the playlist card."""
         videos = []
         for v in self._raw_data.get('videos', []):
             v = v['childVideoRenderer']
@@ -45,18 +63,18 @@ class PlaylistPreview(YoutubePreview):
         return videos
 
     @property
-    def thumbnail_url(self):
+    def thumbnail_url(self) -> str:
         return self.thumbnails[-1]["url"]
 
     @property
-    def thumbnails(self):
+    def thumbnails(self) -> List[dict]:
         return [t['thumbnails'][0] for t in self._raw_data['thumbnails']]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.title
 
     @property
-    def as_dict(self):
+    def as_dict(self) -> dict:
         return {'playlistId': self.playlist_id,
                 'title': self.title,
                 'url': self.playlist_url,
@@ -65,16 +83,18 @@ class PlaylistPreview(YoutubePreview):
 
 
 class YoutubeMixPreview(PlaylistPreview):
+    """Preview of an auto-generated YouTube Mix (radioRenderer)."""
+
     @property
-    def thumbnail_url(self):
+    def thumbnail_url(self) -> str:
         return self.thumbnails[-1]["url"]
 
     @property
-    def thumbnails(self):
+    def thumbnails(self) -> List[dict]:
         return self._raw_data['thumbnail']['thumbnails']
 
     @property
-    def as_dict(self):
+    def as_dict(self) -> dict:
         return {'playlistId': self.playlist_id,
                 'title': self.title,
                 'url': self.playlist_url,
@@ -87,25 +107,27 @@ class YoutubeMixPreview(PlaylistPreview):
 # ---------------------------------------------------------------------------
 
 class ChannelPreview(YoutubePreview):
+    """Preview of a YouTube channel returned in search results."""
 
-    def get(self):
+    def get(self) -> Channel:
+        """Return a full ``Channel`` object (fetches the channel page)."""
         return Channel(self.channel_url)
 
     @property
-    def title(self):
+    def title(self) -> str:
         return self._raw_data["title"]['simpleText']
 
     @property
-    def description(self):
+    def description(self) -> str:
         return "".join(r["text"] for r in
                        self._raw_data.get('descriptionSnippet', {}).get('runs', []))
 
     @property
-    def channel_id(self):
+    def channel_id(self) -> str:
         return self._raw_data["channelId"]
 
     @property
-    def channel_url(self):
+    def channel_url(self) -> str:
         return f"https://www.youtube.com/channel/{self.channel_id}"
 
     @property
@@ -128,18 +150,18 @@ class ChannelPreview(YoutubePreview):
         return int(''.join(c for c in text if c.isdigit()) or 0)
 
     @property
-    def thumbnail_url(self):
+    def thumbnail_url(self) -> str:
         return self.thumbnails[-1]["url"]
 
     @property
-    def thumbnails(self):
+    def thumbnails(self) -> List[dict]:
         return self._raw_data['thumbnail']['thumbnails']
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.title
 
     @property
-    def as_dict(self):
+    def as_dict(self) -> dict:
         return {'channelId': self.channel_id,
                 'title': self.title,
                 'image': self.thumbnail_url,
@@ -152,7 +174,7 @@ class ChannelPreview(YoutubePreview):
 # Video / Related Video
 # ---------------------------------------------------------------------------
 
-def _parse_badge_labels(raw_data: dict) -> list:
+def _parse_badge_labels(raw_data: dict) -> List[str]:
     """Return list of badge label strings from videoRenderer badges."""
     labels = []
     for b in raw_data.get('badges', []):
@@ -168,26 +190,43 @@ def _parse_badge_labels(raw_data: dict) -> list:
 
 
 class VideoPreview(YoutubePreview):
+    """Preview of a video search result (videoRenderer)."""
 
-    def get(self):
+    def get(self) -> Video:
+        """Return a full ``Video`` object."""
         return Video(self.video_id)
 
     @property
-    def title(self):
+    def title(self) -> str:
         return "".join(r["text"] for r in self._raw_data['title']['runs'])
 
     @property
-    def author(self):
+    def author(self) -> str:
         return "".join(r["text"] for r in self._raw_data['ownerText']['runs'])
 
     @property
-    def channel_url(self):
+    def channel_url(self) -> str:
         try:
             path = self._raw_data['ownerText']['runs'][0][
                 'navigationEndpoint']['commandMetadata'][
                 'webCommandMetadata']['url']
             return f'https://www.youtube.com{path}'
         except (KeyError, IndexError):
+            return ""
+
+    @property
+    def channel_id(self) -> str:
+        """Canonical channel id (``UCxxx…``) of the uploader, or '' if missing.
+
+        Pulled from the renderer's ``browseId`` rather than parsed from
+        ``channel_url`` — the renderer always carries the canonical id
+        regardless of whether the channel publishes a custom ``/@handle``
+        or ``/c/name`` URL.
+        """
+        try:
+            return self._raw_data['ownerText']['runs'][0][
+                'navigationEndpoint']['browseEndpoint']['browseId']
+        except (KeyError, IndexError, TypeError):
             return ""
 
     @property
@@ -201,11 +240,11 @@ class VideoPreview(YoutubePreview):
         return thumbs[-1]['url'] if thumbs else ""
 
     @property
-    def video_id(self):
+    def video_id(self) -> str:
         return self._raw_data['videoId']
 
     @property
-    def watch_url(self):
+    def watch_url(self) -> str:
         return f'https://www.youtube.com/watch?v={self.video_id}'
 
     @property
@@ -258,7 +297,7 @@ class VideoPreview(YoutubePreview):
         return 'CC' in self.badges
 
     @property
-    def badges(self) -> list:
+    def badges(self) -> List[str]:
         """List of badge label strings, e.g. ['CC', '4K'] or ['Live']."""
         return _parse_badge_labels(self._raw_data)
 
@@ -288,12 +327,13 @@ class VideoPreview(YoutubePreview):
         return "".join(r['text'] for r in snips[0].get('snippetText', {}).get('runs', []))
 
     @property
-    def thumbnail_url(self):
+    def thumbnail_url(self) -> str:
         return f"https://img.youtube.com/vi/{self.video_id}/default.jpg"
 
     @property
-    def content_type(self) -> ContentType:
-        """Semantic content type inferred from title, description snippet, duration, and badges.
+    def classification(self):
+        """The full mediavocab ``ClassificationResult`` (media_type,
+        content_form, programme_format, content_genres) for this video.
 
         Channel-tag boosting (MOVIE/DOCUMENTARY/ANIME/etc. via channel keyword tags) is NOT
         applied here because search results don't include channel tags — those require fetching
@@ -310,21 +350,69 @@ class VideoPreview(YoutubePreview):
         )
 
     @property
-    def tags(self) -> list:
+    def content_type(self) -> Category:
+        """Single tutubo search facet (:class:`Category`) for this video,
+        collapsed from :attr:`classification` plus the live/upcoming flags."""
+        return classify_category(
+            self.classification,
+            is_live=self.is_live,
+            is_upcoming=self.is_upcoming,
+            title=self.title or "",
+        )
+
+    @property
+    def tags(self) -> List[str]:
         """Freeform labels extracted from title and description (genre, era, format sub-type, etc.)."""
         return extract_tags(self.title or "", self.description_snippet)
 
     @property
-    def keywords(self):
+    def keywords(self) -> List[str]:
+        """Always empty for previews — full Video objects expose channel-level keywords."""
         return []
 
-    def __str__(self):
+    def to_work(self) -> object:
+        """Return a ``mediavocab.Work`` for this video preview."""
+        from tutubo.mediavocab_bridge import video_to_work
+        return video_to_work(
+            title=self.title,
+            video_id=self.video_id,
+            classification=self.classification,
+            length=self.length,
+            is_live=self.is_live,
+            is_upcoming=self.is_upcoming,
+            author=self.author,
+            channel_id=self.channel_id,
+            tags=self.tags,
+        )
+
+    def to_release(self) -> object:
+        """Return a ``mediavocab.Release`` for this video preview."""
+        from tutubo.mediavocab_bridge import video_to_release, _resolution_from_badges
+        from mediavocab.text import parse_title
+        parsed = parse_title(self.title or "")
+        work = self.to_work()
+        return video_to_release(
+            work=work,
+            video_id=self.video_id,
+            watch_url=self.watch_url,
+            thumbnail_url=self.thumbnail_url,
+            is_live=self.is_live,
+            is_upcoming=self.is_upcoming,
+            has_captions=self.has_captions,
+            regions_available=None,
+            container=parsed.source_format or "",
+            resolution=_resolution_from_badges(self.badges),
+        )
+
+
+    def __str__(self) -> str:
         return self.title
 
     @property
-    def as_dict(self):
+    def as_dict(self) -> dict:
         return {
             'videoId': self.video_id,
+            'channelId': self.channel_id,
             'title': self.title,
             'author': self.author,
             'channel_url': self.channel_url,
@@ -348,8 +436,10 @@ class VideoPreview(YoutubePreview):
 
 
 class RelatedVideoPreview(VideoPreview):
+    """A video shown as part of a related-videos shelf in search results."""
+
     @property
-    def as_dict(self):
+    def as_dict(self) -> dict:
         return super().as_dict
 
 
@@ -358,26 +448,28 @@ class RelatedVideoPreview(VideoPreview):
 # ---------------------------------------------------------------------------
 
 class RelatedSearch(YoutubePreview):
+    """A 'people also searched for' query suggestion card."""
 
-    def get(self, preview=True):
+    def get(self, preview: bool = True) -> "object":
+        """Return a ``YoutubeSearch`` instance for this suggested query."""
         from tutubo.search import YoutubeSearch
         return YoutubeSearch(self.query, preview=preview)
 
     @property
-    def query(self):
+    def query(self) -> str:
         return "".join(r["text"] for r in self._raw_data['query']['runs'])
 
     @property
-    def thumbnail_url(self):
+    def thumbnail_url(self) -> str:
         return self.thumbnails[-1]["url"]
 
     @property
-    def thumbnails(self):
+    def thumbnails(self) -> List[dict]:
         return self._raw_data['thumbnail']['thumbnails']
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.query
 
     @property
-    def as_dict(self):
+    def as_dict(self) -> dict:
         return {'query': self.query, 'image': self.thumbnail_url}

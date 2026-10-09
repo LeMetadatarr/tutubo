@@ -1,10 +1,12 @@
 """Internal utilities — URL parsing, HTML extraction, lazy list."""
+from __future__ import annotations
+
 import ast
 import json
 import logging
 import re
 import urllib.parse
-from typing import Any, List
+from typing import Any, Iterator, List
 from urllib.parse import parse_qs
 
 logger = logging.getLogger(__name__)
@@ -83,14 +85,15 @@ def _find_object_from_startpoint(html: str, start: int) -> str:
 
 
 def _parse_object(html: str, start: int) -> Any:
+    """Parse the JS literal at ``start`` as JSON, falling back to a Python literal."""
     raw = _find_object_from_startpoint(html, start)
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
         try:
             return ast.literal_eval(raw)
-        except (ValueError, SyntaxError):
-            raise _HTMLParseError("Could not parse object")
+        except (ValueError, SyntaxError) as exc:
+            raise _HTMLParseError("Could not parse object") from exc
 
 
 def initial_data(html: str) -> dict:
@@ -124,25 +127,31 @@ def get_ytcfg(html: str) -> dict:
 # ---------------------------------------------------------------------------
 
 class DeferredGeneratorList:
-    """Wraps a generator so elements are fetched only as needed."""
+    """Wraps a generator so elements are fetched only as needed.
 
-    def __init__(self, generator):
-        self.gen = generator
+    Supports indexing, slicing, iteration and len(). Negative indexing or
+    slicing forces full materialisation of the underlying generator.
+    """
+
+    def __init__(self, generator: Iterator[Any]) -> None:
+        self.gen: Iterator[Any] = generator
         self._elements: List[Any] = []
 
-    def _fetch_up_to(self, index: int):
+    def _fetch_up_to(self, index: int) -> None:
+        """Pull from the generator until ``_elements`` covers ``index``."""
         while len(self._elements) <= index:
             try:
                 self._elements.append(next(self.gen))
             except StopIteration:
                 break
 
-    def _fetch_all(self):
+    def _fetch_all(self) -> None:
+        """Drain the generator into ``_elements``."""
         for item in self.gen:
             self._elements.append(item)
-        self.gen = iter([])  # exhaust
+        self.gen = iter([])
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Any) -> Any:
         if isinstance(key, int):
             if key >= 0:
                 self._fetch_up_to(key)
@@ -154,7 +163,7 @@ class DeferredGeneratorList:
             return self._elements[key]
         raise TypeError(f"Invalid key type: {type(key)}")
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         i = 0
         while True:
             self._fetch_up_to(i)
@@ -163,13 +172,13 @@ class DeferredGeneratorList:
             yield self._elements[i]
             i += 1
 
-    def __len__(self):
+    def __len__(self) -> int:
         self._fetch_all()
         return len(self._elements)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         self._fetch_all()
         return repr(self._elements)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return list(self) == other

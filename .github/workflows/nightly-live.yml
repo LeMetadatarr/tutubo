@@ -1,0 +1,36 @@
+name: nightly-live
+
+# Re-records every fixture against live YouTube/YTMusic endpoints and
+# re-runs the offline parser test suite against the freshly-captured
+# fixtures.  A failure here means upstream YouTube has drifted and the
+# committed fixtures (and possibly the parser) need attention — the
+# canonical YT silent-failure mode where users see empty results.
+#
+# Fixtures captured here are NOT committed back; this job is detect-only.
+
+on:
+  schedule:
+    - cron: "23 5 * * *"   # 05:23 UTC daily
+  workflow_dispatch:
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: Re-record fixtures from live YouTube
+        env:
+          TUTUBO_RECORD_DIR: test/fixtures
+        run: |
+          python test/record_fixtures.py
+      - name: Run parser tests against freshly-recorded fixtures
+        run: |
+          pytest -q test/

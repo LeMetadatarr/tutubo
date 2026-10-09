@@ -1,6 +1,6 @@
 # Testing
 
-tutubo uses a **fixture-based** test strategy. The test suite never touches the network — raw YouTube API responses are stored as JSON files in `test/fixtures/` and replayed by pytest via `monkeypatch`.
+tutubo uses a **fixture-based** test strategy. The test suite never touches the network. Raw YouTube API responses are stored as JSON files in `test/fixtures/` and replayed by pytest through `monkeypatch`.
 
 ---
 
@@ -17,14 +17,14 @@ pytest
 
 ## Fixture-based testing philosophy
 
-Recording a real API response once and replaying it in all future test runs means:
+Recording a real API response once and replaying it in all future test runs gives you:
 
-- Tests are deterministic — the same JSON is parsed every time.
-- Tests are fast — no DNS, TLS, or network latency.
-- Tests document expected API response shapes — a fixture file is also a reference for what a real YouTube API response looks like.
-- Regressions are reproducible — when a bug is reported, attach the fixture and the failure can be reproduced offline without replicating the reporter's network conditions.
+- Deterministic tests: the same JSON is parsed every time.
+- Fast tests: no DNS, TLS, or network latency.
+- Documentation of expected API response shapes: a fixture file also serves as a reference for what a real YouTube API response looks like.
+- Reproducible regressions: when someone reports a bug, attach the fixture and reproduce the failure offline, without replicating the reporter's network conditions.
 
-The trade-off is that fixtures become stale when YouTube changes its response schema. When that happens, record fresh fixtures and commit them.
+The trade-off is that fixtures go stale when YouTube changes its response schema. When that happens, record fresh fixtures and commit them.
 
 ---
 
@@ -34,14 +34,14 @@ The trade-off is that fixtures become stale when YouTube changes its response sc
 
 Patches `tutubo._innertube._post` to serve responses from JSON files instead of hitting the YouTube innertube API.
 
-**Fixture file naming** — the fixture name is derived from the search query:
+**Fixture file naming**: tutubo derives the fixture name from the search query.
 
 1. Take the `query` key from the request body (or `params`).
-2. Lowercase and replace all non-word characters with `_`.
+2. Lowercase it and replace all non-word characters with `_`.
 3. Truncate to 60 characters.
 4. Prepend `search_` (the endpoint name).
 
-Example: query `"rob zombie"` → `search_rob_zombie.json`.
+Example: query `"rob zombie"` becomes `search_rob_zombie.json`.
 
 Continuation requests (requests containing a `continuation` token instead of a `query`) return an empty terminator that stops pagination cleanly:
 
@@ -49,9 +49,9 @@ Continuation requests (requests containing a `continuation` token instead of a `
 {"onResponseReceivedCommands": [{"appendContinuationItemsAction": {"continuationItems": []}}]}
 ```
 
-This means fixture tests cover only the first page of results. If a test needs multi-page behaviour, the continuation fixture must be manually provided.
+This means fixture tests cover only the first page of results. If a test needs multi-page behavior, you must provide the continuation fixture manually.
 
-If the expected fixture file does not exist, the monkeypatched function raises `FileNotFoundError` with a message pointing to the expected path and instructions for recording it.
+If the expected fixture file does not exist, the monkeypatched function raises `FileNotFoundError` with a message that points to the expected path and gives instructions for recording it.
 
 **Usage in tests:**
 
@@ -76,22 +76,22 @@ Also patches `requests.post` (for continuation requests) to return an empty acti
 **Fixture file naming** is controlled by the `_SLUG_MAP` dictionary and a fallback:
 
 1. The URL path is lowercased and the leading `@` is preserved, e.g. `@watchdust/videos`.
-2. The path is looked up in `_SLUG_MAP`.
-3. If found, the mapped slug is used directly.
-4. If not found, the path is sanitised (non-word characters replaced with `_`, leading `@` stripped) and truncated to 60 characters.
+2. tutubo looks up the path in `_SLUG_MAP`.
+3. If found, tutubo uses the mapped slug directly.
+4. If not found, tutubo sanitizes the path (replaces non-word characters with `_`, strips a leading `@`) and truncates it to 60 characters.
 5. The fixture file is `test/fixtures/channel_{slug}.json`.
 
-**`_SLUG_MAP` — full listing** `test/conftest.py:95`
+**`_SLUG_MAP`, full listing** (`test/conftest.py:95`)
 
 | URL path | Fixture slug | Content |
 |---|---|---|
-| `@watchdust/videos` | `watchdust_videos` | Short film channel — videos tab |
-| `@watchalter/videos` | `watchalter_videos` | Short film channel — videos tab |
-| `@omeleto/videos` | `omeleto_videos` | Short film channel — videos tab |
-| `@mosfilm_eng/videos` | `mosfilm_eng_videos` | Full movie channel — videos tab |
-| `@cultcinemaclassics/videos` | `cultcinemaclassics_videos` | Full movie channel — videos tab |
-| `@moonflix_official/videos` | `moonflix_official_videos` | Full movie channel — videos tab |
-| `@thedissenterrl/videos` | `thedissenterrl_videos` | Podcast/interview channel — videos tab |
+| `@watchdust/videos` | `watchdust_videos` | Short film channel: videos tab |
+| `@watchalter/videos` | `watchalter_videos` | Short film channel: videos tab |
+| `@omeleto/videos` | `omeleto_videos` | Short film channel: videos tab |
+| `@mosfilm_eng/videos` | `mosfilm_eng_videos` | Full movie channel: videos tab |
+| `@cultcinemaclassics/videos` | `cultcinemaclassics_videos` | Full movie channel: videos tab |
+| `@moonflix_official/videos` | `moonflix_official_videos` | Full movie channel: videos tab |
+| `@thedissenterrl/videos` | `thedissenterrl_videos` | Podcast/interview channel: videos tab |
 | `@overlysarcasticproductions/videos` | `overlysarcasticproductions_videos` | Educational channel |
 | `@pbsspacetime/videos` | `pbsspacetime_videos` | Physics/science channel |
 | `@eons/videos` | `eons_videos` | Science channel |
@@ -114,19 +114,19 @@ Also patches `requests.post` (for continuation requests) to return an empty acti
 | `@france24_en/live` | `france24_current_live` | Live redirect page |
 | `@aljazeeraenglish/live` | `aljazeera_current_live` | Live redirect page |
 | `@euronewses/live` | `euronewses_current_live` | Live redirect page |
-| `@watchdust` (home) | `watchdust_home` | Channel home — keywords/tags |
-| `@bbcnews` (home) | `bbcnews_home` | Channel home — keywords/tags |
-| `@markiplier` (home) | `markiplier_home` | Channel home — keywords/tags |
-| *(…and all other channel handles listed in the map)* | | Channel home — keywords/tags |
+| `@watchdust` (home) | `watchdust_home` | Channel home: keywords/tags |
+| `@bbcnews` (home) | `bbcnews_home` | Channel home: keywords/tags |
+| `@markiplier` (home) | `markiplier_home` | Channel home: keywords/tags |
+| *(and all other channel handles listed in the map)* | | Channel home: keywords/tags |
 
-Home page fixtures (`*_home`) are loaded when `Channel._get_data` is called for the bare channel URL (e.g. `https://www.youtube.com/@watchdust`). They are needed for `Channel.keywords` — which is how `Video.channel_tags` gets populated — and therefore for channel-context-boosted classification tests.
+Home page fixtures (`*_home`) load when tutubo calls `Channel._get_data` for the bare channel URL (e.g. `https://www.youtube.com/@watchdust`). They are needed for `Channel.keywords`, which populates `Video.channel_tags`, and therefore for channel-context-boosted classification tests.
 
 **Usage in tests:**
 
 ```python
 def test_short_film_channel(patch_channel_data):
     from tutubo import Channel
-    from tutubo.content_type import ContentType
+    from tutubo import ContentType
     c = Channel("https://www.youtube.com/@watchdust")
     for v in c.videos:
         assert v.content_type in (ContentType.SHORT_FILM, ContentType.VIDEO)
@@ -139,9 +139,9 @@ def test_short_film_channel(patch_channel_data):
 
 `test/conftest.py:178`
 
-An alternative fixture that patches `requests.get` in `tutubo.channel` to serve raw HTML from `.html` files. Used when you need to test the full `initial_data()` parsing path rather than injecting already-parsed dicts.
+An alternative fixture that patches `requests.get` in `tutubo.channel` to serve raw HTML from `.html` files. Use it when you need to test the full `initial_data()` parsing path rather than injecting already-parsed dicts.
 
-Fixture files are stored as `test/fixtures/channel_<path_slug>.html` where the slug is derived from the URL path with slashes replaced by `_`.
+Fixture files are stored as `test/fixtures/channel_<path_slug>.html`, where the slug comes from the URL path with slashes replaced by `_`.
 
 ---
 
@@ -150,21 +150,21 @@ Fixture files are stored as `test/fixtures/channel_<path_slug>.html` where the s
 ### Automated recording
 
 ```bash
-TUTUBO_RECORD_DIR=test/fixtures python scripts/record_fixtures.py
+TUTUBO_RECORD_DIR=test/fixtures python test/record_fixtures.py
 ```
 
-`scripts/record_fixtures.py` records:
+`test/record_fixtures.py` records:
 
-1. **Search fixtures** — calls `YoutubeSearch(query).iterate_videos()` for a large set of predefined queries covering every `ContentType`. Each innertube response is saved as `search_{query_slug}.json`.
-2. **YouTube Music fixtures** — calls `search_yt_music(query)` for two queries and saves results as `ytmusic_{query_slug}.json`.
-3. **Channel JSON fixtures** — fetches `ytInitialData` for a predefined list of channel handles (both `/videos` tabs and home pages) and saves as `channel_{slug}.json`.
-4. **Channel HTML fixtures** — also patches `requests.get` during the run to save raw HTML responses as `channel_{path_slug}.html`.
+1. **Search fixtures**: calls `YoutubeSearch(query).iterate_videos()` for a large set of predefined queries covering every `ContentType`. It saves each innertube response as `search_{query_slug}.json`.
+2. **YouTube Music fixtures**: calls `search_yt_music(query)` for two queries and saves results as `ytmusic_{query_slug}.json`.
+3. **Channel JSON fixtures**: fetches `ytInitialData` for a predefined list of channel handles (both `/videos` tabs and home pages) and saves them as `channel_{slug}.json`.
+4. **Channel HTML fixtures**: also patches `requests.get` during the run to save raw HTML responses as `channel_{path_slug}.html`.
 
 Commit all resulting files to enable offline CI runs.
 
 ### Ad-hoc recording
 
-Set `TUTUBO_RECORD_DIR` before any script that uses tutubo. The innertube client checks `os.environ.get("TUTUBO_RECORD_DIR")` on module import (`tutubo/_innertube.py:11`) and automatically writes every API response to that directory:
+Set `TUTUBO_RECORD_DIR` before you run any script that uses tutubo. The innertube client checks `os.environ.get("TUTUBO_RECORD_DIR")` on module import (`tutubo/_innertube.py:18`) and automatically writes every API response to that directory:
 
 ```bash
 TUTUBO_RECORD_DIR=test/fixtures python examples/search.py
@@ -190,9 +190,12 @@ Then attach the files from `/tmp/my_fixtures/`. The maintainer can replay them o
 
 | File | Coverage |
 |---|---|
-| `test/test_content_type.py` | All 30 `ContentType` values, every regex, priority conflicts, duration gates, channel-tag boosting — fully offline |
-| `test/test_models.py` | `VideoPreview`, `ChannelPreview`, `PlaylistPreview`, `RelatedSearch`, `YoutubeMixPreview` field access — fully offline |
-| `test/test_search.py` | `YoutubeSearch` iteration, factories, typed iterators — requires search fixtures |
-| `test/test_channel_classification.py` | `Channel.videos` content-type distribution by channel — requires channel fixtures |
-| `test/test_live_news_classification.py` | Live stream sub-classification (LIVE_RADIO, LIVE_NEWS, IPTV) — requires live-stream channel fixtures |
-| `test/test_import.py` | Smoke test — verifies top-level imports work |
+| `test/test_content_type.py` | All 30 `ContentType` values, every regex, priority conflicts, duration gates, channel-tag boosting. Fully offline |
+| `test/test_models.py` | `VideoPreview`, `ChannelPreview`, `PlaylistPreview`, `RelatedSearch`, `YoutubeMixPreview` field access. Fully offline |
+| `test/test_search.py` | `YoutubeSearch` iteration, factories, typed iterators. Requires search fixtures |
+| `test/test_channel_classification.py` | `Channel.videos` content-type distribution by channel. Requires channel fixtures |
+| `test/test_live_news_classification.py` | Live stream sub-classification (LIVE_RADIO, LIVE_NEWS, IPTV). Requires live-stream channel fixtures |
+| `test/test_import.py` | Smoke test that verifies top-level imports work |
+
+---
+[← Downloading](downloading.md) · [Home](index.md)

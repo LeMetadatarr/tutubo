@@ -1,10 +1,17 @@
-"""Download YouTube videos/audio via yt-dlp."""
+"""Download YouTube videos/audio via yt-dlp.
+
+Thin subprocess wrapper around the ``yt-dlp`` CLI; ``yt-dlp`` must be on PATH.
+"""
+from __future__ import annotations
+
 import shutil
 import subprocess
 from pathlib import Path
+from typing import List, Optional
 
 
-def _require_ytdlp():
+def _require_ytdlp() -> None:
+    """Raise RuntimeError if the ``yt-dlp`` binary is not on PATH."""
     if not shutil.which("yt-dlp"):
         raise RuntimeError(
             "yt-dlp not found. Install it with: pip install yt-dlp"
@@ -12,7 +19,7 @@ def _require_ytdlp():
 
 
 def download(url: str, output_path: str = ".", audio_only: bool = False,
-             quality: str = None, filename: str = None) -> str:
+             quality: Optional[str] = None, filename: Optional[str] = None) -> str:
     """Download a YouTube video or audio track using yt-dlp.
 
     :param url:        YouTube watch URL.
@@ -64,7 +71,7 @@ def download(url: str, output_path: str = ".", audio_only: bool = False,
 
 
 def download_playlist(playlist_url: str, output_path: str = ".",
-                      audio_only: bool = False, quality: str = None) -> list:
+                      audio_only: bool = False, quality: Optional[str] = None) -> List[str]:
     """Download all videos in a playlist.
 
     :returns: List of downloaded file paths.
