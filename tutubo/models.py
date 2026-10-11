@@ -18,6 +18,10 @@ from mediavocab.text import classify_video, extract_tags
 class YoutubePreview:
     """Base class — stores the raw renderer dict that subclasses interpret."""
 
+    # Session of the search that produced this preview; ``get()`` reuses it so
+    # the upgraded object keeps the search's transport and address family.
+    _session = None
+
     def __init__(self, renderer_data: dict) -> None:
         self._raw_data: dict = renderer_data
 
@@ -31,7 +35,7 @@ class PlaylistPreview(YoutubePreview):
 
     def get(self) -> Playlist:
         """Return a full ``Playlist`` object (fetches the playlist page)."""
-        return Playlist(self.playlist_url)
+        return Playlist(self.playlist_url, session=self._session)
 
     @property
     def title(self) -> str:
@@ -112,7 +116,7 @@ class ChannelPreview(YoutubePreview):
 
     def get(self) -> Channel:
         """Return a full ``Channel`` object (fetches the channel page)."""
-        return Channel(self.channel_url)
+        return Channel(self.channel_url, session=self._session)
 
     @property
     def title(self) -> str:
@@ -445,7 +449,7 @@ class RelatedSearch(YoutubePreview):
     def get(self, preview: bool = True) -> "object":
         """Return a ``YoutubeSearch`` instance for this suggested query."""
         from tutubo.search import YoutubeSearch
-        return YoutubeSearch(self.query, preview=preview)
+        return YoutubeSearch(self.query, preview=preview, session=self._session)
 
     @property
     def query(self) -> str:

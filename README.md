@@ -158,7 +158,9 @@ ch = Channel("https://www.youtube.com/@LinusTechTips",
              session=cffi_requests.Session(impersonate="chrome"))
 ```
 
-**Note:** `tutubo._innertube._post` (the search path) uses stdlib `urllib.request` and ignores the transport setting. See [docs/transport.md](docs/transport.md).
+To force IPv4 or IPv6 for one object, without touching process-wide state, pass `family="ipv4"` or `family="ipv6"` to `Channel`, `Playlist`, `YoutubeSearch` or `search_yt`; `tutubo.transport.set_default_family()` sets it for everything.
+
+**Note:** the search path uses stdlib `urllib.request` and ignores the transport setting unless a `session` or `family` is given. See [docs/transport.md](docs/transport.md).
 
 ## Configuration
 
