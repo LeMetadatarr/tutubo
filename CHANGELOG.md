@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.4.0a1](https://github.com/LeMetadatarr/tutubo/tree/4.4.0a1) (2026-10-11)
+
+[Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.3.2a1...4.4.0a1)
+
+**Merged pull requests:**
+
+- feat: video durations in channel and playlist listings, playlist thumbnail [\#52](https://github.com/LeMetadatarr/tutubo/pull/52) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [4.3.2a1](https://github.com/LeMetadatarr/tutubo/tree/4.3.2a1) (2026-10-09)
 
 [Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.3.1a7...4.3.2a1)
