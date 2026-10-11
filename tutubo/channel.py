@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Iterable, List, Optional, Tuple
 
-from tutubo._utils import channel_name, initial_data, get_ytcfg, DeferredGeneratorList
+from tutubo._utils import (channel_name, initial_data, get_ytcfg, DeferredGeneratorList,
+                          duration_from_item)
 from tutubo.transport import default_session
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,26 @@ _BROWSE_URL = "https://www.youtube.com/youtubei/v1/browse"
 _BROWSE_CONTEXT = {
     "client": {"clientName": "WEB", "clientVersion": "2.20200720.00.02"}
 }
+
+
+def _browse_context(language: str) -> dict:
+    """``_BROWSE_CONTEXT`` with ``hl``/``gl`` taken from an Accept-Language value.
+
+    ``hl`` is set only for a 2-3 letter primary subtag and ``gl`` only for a
+    two-letter region subtag; script (``Hant``) and numeric (``419``) subtags
+    and wildcards are skipped.
+    """
+    tag = language.split(",")[0].split(";")[0].strip().replace("_", "-")
+    parts = tag.split("-")
+    client = dict(_BROWSE_CONTEXT["client"])
+    if re.fullmatch(r"[A-Za-z]{2,3}", parts[0]):
+        client["hl"] = parts[0].lower()
+    region = next((p for p in parts[1:] if re.fullmatch(r"[A-Za-z]{2}", p)), None)
+    if region:
+        client["gl"] = region.upper()
+    return {"client": client}
+
+
 # Standard headers and consent cookie for all YouTube page requests.
 # SOCS is a proto-encoded persistent consent acceptance token required in EU/similar regions.
 _YT_HEADERS = {
@@ -60,7 +82,8 @@ class Video:
                  thumbnail_url: Optional[str] = None, is_live: bool = False,
                  keywords: Optional[List[str]] = None, view_count: str = "",
                  published_time: str = "", channel_tags: Optional[List[str]] = None,
-                 description: str = "") -> None:
+                 description: str = "",
+                 duration_seconds: Optional[int] = None) -> None:
         self.video_id: str = video_id
         self.watch_url: str = f"https://www.youtube.com/watch?v={video_id}"
         self._title: Optional[str] = title
@@ -71,6 +94,7 @@ class Video:
         self.published_time: str = published_time  # e.g. "5 hours ago"
         self.channel_tags: List[str] = channel_tags or []
         self.description: str = description
+        self.duration_seconds: Optional[int] = duration_seconds  # None for live/upcoming
 
     @property
     def title(self) -> Optional[str]:
@@ -127,6 +151,7 @@ class Video:
             "views": self.view_count,
             "published": self.published_time,
             "description": self.description,
+            "duration_seconds": self.duration_seconds,
             "content_type": self.content_type,
             "tags": self.tags,
         }
@@ -149,6 +174,7 @@ class Playlist:
         self._initial_data: Optional[dict] = None
         self._ytcfg: Optional[dict] = None
         self._title: Optional[str] = None
+        self._thumbnail_url: Optional[str] = None
         self._session = session if session is not None else default_session()
 
     @property
@@ -195,9 +221,42 @@ class Playlist:
                 pass
         return self._title
 
+    @property
+    def thumbnail_url(self) -> Optional[str]:
+        """The playlist's own thumbnail, else the first video's thumbnail, else ``None``."""
+        if not self._thumbnail_url:
+            first = next(iter(self.videos), None)
+            self._thumbnail_url = self._page_thumbnail() or (
+                f"https://img.youtube.com/vi/{first.video_id}/hqdefault.jpg"
+                if first else None)
+        return self._thumbnail_url
+
+    def _page_thumbnail(self) -> Optional[str]:
+        data = self.data
+        candidates = (
+            lambda: data["sidebar"]["playlistSidebarRenderer"]["items"][0][
+                "playlistSidebarPrimaryInfoRenderer"]["thumbnailRenderer"][
+                "playlistVideoThumbnailRenderer"]["thumbnail"]["thumbnails"],
+            lambda: data["microformat"]["microformatDataRenderer"][
+                "thumbnail"]["thumbnails"],
+        )
+        for get in candidates:
+            try:
+                return get()[-1]["url"]
+            except (KeyError, IndexError, TypeError):
+                continue
+        return None
+
     @staticmethod
     def _extract_video_ids(raw: str) -> Tuple[List[str], Optional[str]]:
         """Parse a playlist response and return (video_ids, continuation_token)."""
+        entries, continuation = Playlist._extract_entries(raw)
+        return [vid_id for vid_id, _ in entries], continuation
+
+    @staticmethod
+    def _extract_entries(raw: str) -> Tuple[List[Tuple[str, Optional[int]]], Optional[str]]:
+        """Parse a playlist response and return ((video_id, duration_seconds) pairs,
+        continuation_token)."""
         data = json.loads(raw) if isinstance(raw, str) else raw
         continuation = None
         items = None
@@ -231,15 +290,15 @@ class Playlist:
                 continuation = token
                 items = items[:-1]
 
-        ids = []
+        entries = []
         seen = set()
         for item in items:
             vid_id = (item.get("playlistVideoRenderer", {}).get("videoId")
                       or item.get("lockupViewModel", {}).get("contentId"))
             if vid_id and vid_id not in seen:
-                ids.append(vid_id)
+                entries.append((vid_id, duration_from_item(item)))
                 seen.add(vid_id)
-        return ids, continuation
+        return entries, continuation
 
     def _continuation_post(self, token: str) -> str:
         """POST a continuation token to the browse endpoint and return raw JSON text."""
@@ -251,13 +310,17 @@ class Playlist:
         resp.raise_for_status()
         return resp.text
 
-    def _video_id_generator(self) -> Iterable[str]:
-        ids, continuation = self._extract_video_ids(json.dumps(self.data))
-        yield from ids
+    def _entry_generator(self) -> Iterable[Tuple[str, Optional[int]]]:
+        entries, continuation = self._extract_entries(json.dumps(self.data))
+        yield from entries
         while continuation:
             raw = self._continuation_post(continuation)
-            ids, continuation = self._extract_video_ids(raw)
-            yield from ids
+            entries, continuation = self._extract_entries(raw)
+            yield from entries
+
+    def _video_id_generator(self) -> Iterable[str]:
+        for vid_id, _ in self._entry_generator():
+            yield vid_id
 
     @property
     def video_urls(self) -> List[str]:
@@ -265,8 +328,8 @@ class Playlist:
 
     @property
     def videos(self) -> Iterable[Video]:
-        for vid_id in self._video_id_generator():
-            yield Video(vid_id)
+        for vid_id, duration in self._entry_generator():
+            yield Video(vid_id, duration_seconds=duration)
 
     def __repr__(self) -> str:
         return f"<Playlist {self._playlist_id!r} title={self.title!r}>"
@@ -453,7 +516,7 @@ class Channel:
         url = f"{_BROWSE_URL}?key={self.yt_api_key}"
         resp = self._session.post(url, json={
             "continuation": token,
-            "context": _BROWSE_CONTEXT,
+            "context": _browse_context(self.language),
             **({"visitorData": self._visitor_data} if self._visitor_data else {}),
         }, timeout=30)
         resp.raise_for_status()
@@ -604,6 +667,7 @@ class Channel:
                 published_time=published_time,
                 channel_tags=channel_tags or [],
                 description=self._description_from_item(item),
+                duration_seconds=duration_from_item(item),
             ))
         return videos, continuation
 
