@@ -191,13 +191,14 @@ v.published_time  # str: relative label, e.g. "5 hours ago" or "3 months ago"
 v.keywords        # list[str]: always [] (channel pages do not expose per-video keywords)
 v.channel_tags    # list[str]: inherited from the channel's keyword list at fetch time
 v.description     # str: description snippet if returned by the channel page (may be "")
+v.duration_seconds  # int or None: parsed from the listing; None for live/upcoming
 v.content_type    # ContentType: classified from title, description, is_live, channel_tags
 v.tags            # list[str]: freeform labels from extract_tags() covering genre,
                   #             era, format subtype, audience, etc.
 v.as_dict         # dict
 ```
 
-`as_dict` keys: `videoId`, `url`, `title`, `image`, `is_live`, `views`, `published`, `description`, `content_type`, `tags`.
+`as_dict` keys: `videoId`, `url`, `title`, `image`, `is_live`, `views`, `published`, `description`, `duration_seconds`, `content_type`, `tags`.
 
 ### Content type from channel context
 

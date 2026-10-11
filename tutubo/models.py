@@ -11,6 +11,7 @@ from typing import List
 
 from tutubo.channel import Video, Channel, Playlist
 from tutubo.classification import Category, classify_category
+from tutubo._utils import parse_duration
 from mediavocab.text import classify_video, extract_tags
 
 
@@ -271,17 +272,8 @@ class VideoPreview(YoutubePreview):
     @property
     def length(self) -> int:
         """Duration in seconds. 0 for live streams."""
-        if 'lengthText' in self._raw_data:
-            pts = self._raw_data['lengthText']['simpleText'].split(":")
-            h, m, s = 0, 0, 0
-            if len(pts) == 3:
-                h, m, s = pts
-            elif len(pts) == 2:
-                m, s = pts
-            elif len(pts) == 1:
-                s = pts[0]
-            return int(s) + 60 * int(m) + 3600 * int(h)
-        return 0
+        return parse_duration(
+            self._raw_data.get('lengthText', {}).get('simpleText'), allow_bare=True) or 0
 
     @property
     def is_live(self) -> bool:

@@ -40,7 +40,7 @@ for v in YoutubeSearch.for_movies("blade runner").iterate_movies(max_res=3):
 
 ## Key invariants
 
-- A `Video` from a channel tab has `view_count` as a human string (e.g. `"31K views"`) and `published_time` as a relative string (e.g. `"5 hours ago"`). It has **no `length` field** because duration is not available from channel-page renderers.
+- A `Video` from a channel tab has `view_count` as a human string (e.g. `"31K views"`) and `published_time` as a relative string (e.g. `"5 hours ago"`). Its `duration_seconds` is an int parsed from the listing, or `None` for live and upcoming videos. `Playlist.videos` fills `duration_seconds` the same way, and `Playlist.thumbnail_url` gives the playlist's thumbnail.
 - A `VideoPreview` from a search result has `length` as seconds (int) and `view_count` as an exact integer.
 - `MusicAlbum` is a subclass of `MusicPlaylist`. Both expose `.tracks` as a `list[MusicTrack]`, `.track_count`, `.year`, and `.playlist_url`.
 - `Channel.live` fetches `/@handle/live` (a watch-page redirect) and returns **one `Video` or `None`**, the stream that is currently on air.

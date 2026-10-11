@@ -269,6 +269,7 @@ def test_regression_channel_continuation_post_raises_on_http_error(monkeypatch):
 
     ch = Channel.__new__(Channel)
     ch._session = _FailingSession()
+    ch.language = "en-US,en;q=0.9"
     ch._ytcfg = {"INNERTUBE_API_KEY": "x"}
     ch._visitor_data = None
 
