@@ -13,7 +13,7 @@ from typing import Iterable, List, Optional, Tuple
 
 from tutubo._utils import (channel_name, initial_data, get_ytcfg, DeferredGeneratorList,
                           duration_from_item)
-from tutubo.transport import default_session
+from tutubo.transport import default_session, make_session
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,10 @@ _YT_COOKIES = {
     "CONSENT": "YES+cb",
     "SOCS": "CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg",
 }
+
+
+def _new_session(family: Optional[str]) -> object:
+    return default_session() if family is None else make_session(family)
 
 
 class Video:
@@ -163,7 +167,8 @@ class Video:
 class Playlist:
     """A YouTube playlist — fetches video URLs from the playlist page."""
 
-    def __init__(self, url: str, session: Optional[object] = None) -> None:
+    def __init__(self, url: str, session: Optional[object] = None,
+                 family: Optional[str] = None) -> None:
         from urllib.parse import urlparse, parse_qs
         parsed = urlparse(url)
         ids = parse_qs(parsed.query).get("list", [])
@@ -175,7 +180,7 @@ class Playlist:
         self._ytcfg: Optional[dict] = None
         self._title: Optional[str] = None
         self._thumbnail_url: Optional[str] = None
-        self._session = session if session is not None else default_session()
+        self._session = session if session is not None else _new_session(family)
 
     @property
     def playlist_id(self) -> str:
@@ -345,6 +350,8 @@ class PodcastPreview:
         self.episode_count: str = episode_count
         self.last_updated: str = last_updated
         self.thumbnail_url: str = thumbnail_url
+        # session of the Channel that produced this card; get() reuses it
+        self._session: Optional[object] = None
 
     @property
     def playlist_url(self) -> str:
@@ -352,7 +359,7 @@ class PodcastPreview:
 
     def get(self) -> "Playlist":
         """Return a full ``Playlist`` for this podcast's episode list."""
-        return Playlist(self.playlist_url)
+        return Playlist(self.playlist_url, session=self._session)
 
     @property
     def as_dict(self) -> dict:
@@ -373,7 +380,8 @@ class Channel:
     """YouTube Channel — fetches metadata, videos, shorts, live streams, and playlists."""
 
     def __init__(self, url: str, language: str = "en-US,en;q=0.9",
-                 session: Optional[object] = None) -> None:
+                 session: Optional[object] = None,
+                 family: Optional[str] = None) -> None:
         self._channel_uri = channel_name(url)
         self.language = language
         self.channel_url = f"https://www.youtube.com{self._channel_uri}"
@@ -387,7 +395,7 @@ class Channel:
         self._initial_data_cache: dict = {}
         self._ytcfg: Optional[dict] = None
         self._visitor_data: Optional[str] = None
-        self._session = session if session is not None else default_session()
+        self._session = session if session is not None else _new_session(family)
 
     def _get_html(self, url: str) -> str:
         """Fetch ``url`` (memoised per-instance) with consent cookies set."""
@@ -892,6 +900,7 @@ class Channel:
                 if lvm:
                     pod = self._parse_podcast_item(lvm)
                     if pod:
+                        pod._session = self._session
                         yield pod
 
     @property

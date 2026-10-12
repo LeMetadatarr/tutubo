@@ -10,6 +10,7 @@ import enum
 from typing import Iterator, Optional
 
 from tutubo._innertube import search as _innertube_search
+from tutubo.transport import make_session, resolve_family
 from tutubo.channel import Channel, Video, Playlist
 from tutubo.models import (
     VideoPreview, RelatedVideoPreview, ChannelPreview,
@@ -53,103 +54,104 @@ class YoutubeSearch:
 
     # ------------------------------------------------------------------
     # Factory classmethods — enrich the query for better signal/noise
+    # (extra keyword arguments, e.g. ``family=``, go to the constructor)
     # ------------------------------------------------------------------
 
     @classmethod
-    def for_movies(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} full movie")
+    def for_movies(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} full movie", **kwargs)
 
     @classmethod
-    def for_short_films(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} short film")
+    def for_short_films(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} short film", **kwargs)
 
     @classmethod
-    def for_trailers(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} official trailer")
+    def for_trailers(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} official trailer", **kwargs)
 
     @classmethod
-    def for_documentaries(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} documentary")
+    def for_documentaries(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} documentary", **kwargs)
 
     @classmethod
-    def for_behind_the_scenes(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} behind the scenes")
+    def for_behind_the_scenes(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} behind the scenes", **kwargs)
 
     @classmethod
-    def for_anime(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} anime")
+    def for_anime(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} anime", **kwargs)
 
     @classmethod
-    def for_tv_episodes(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} full episode")
+    def for_tv_episodes(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} full episode", **kwargs)
 
     @classmethod
-    def for_audiobooks(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} full audiobook")
+    def for_audiobooks(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} full audiobook", **kwargs)
 
     @classmethod
-    def for_audio_dramas(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} audio drama")
+    def for_audio_dramas(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} audio drama", **kwargs)
 
     @classmethod
-    def for_podcasts(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} podcast")
+    def for_podcasts(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} podcast", **kwargs)
 
     @classmethod
-    def for_stand_up(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} stand up comedy special")
+    def for_stand_up(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} stand up comedy special", **kwargs)
 
     @classmethod
-    def for_interviews(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} interview")
+    def for_interviews(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} interview", **kwargs)
 
     @classmethod
-    def for_lectures(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} lecture")
+    def for_lectures(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} lecture", **kwargs)
 
     @classmethod
-    def for_concerts(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} full concert")
+    def for_concerts(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} full concert", **kwargs)
 
     @classmethod
-    def for_news(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} news")
+    def for_news(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} news", **kwargs)
 
     @classmethod
-    def for_live_news(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} live news")
+    def for_live_news(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} live news", **kwargs)
 
     @classmethod
-    def for_sport(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} full match")
+    def for_sport(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} full match", **kwargs)
 
     @classmethod
-    def for_gaming(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} gameplay")
+    def for_gaming(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} gameplay", **kwargs)
 
     @classmethod
-    def for_tutorials(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} tutorial")
+    def for_tutorials(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} tutorial", **kwargs)
 
     @classmethod
-    def for_reactions(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} reaction")
+    def for_reactions(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} reaction", **kwargs)
 
     @classmethod
-    def for_compilations(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} compilation")
+    def for_compilations(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} compilation", **kwargs)
 
     @classmethod
-    def for_kids(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} for kids")
+    def for_kids(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} for kids", **kwargs)
 
     @classmethod
-    def for_music_videos(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} official music video")
+    def for_music_videos(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} official music video", **kwargs)
 
     @classmethod
-    def for_music_audio(cls, query: str) -> "YoutubeSearch":
-        return cls(f"{query} official audio")
+    def for_music_audio(cls, query: str, **kwargs) -> "YoutubeSearch":
+        return cls(f"{query} official audio", **kwargs)
 
     # keep old name as alias
     for_music = for_music_videos
@@ -158,7 +160,15 @@ class YoutubeSearch:
     # Core
     # ------------------------------------------------------------------
 
-    def __init__(self, query: str, preview: bool = True, thumbnail_url: str = "") -> None:
+    def __init__(self, query: str, preview: bool = True, thumbnail_url: str = "",
+                 session: Optional[object] = None,
+                 family: Optional[str] = None) -> None:
+        """``session`` or ``family`` ("ipv4" / "ipv6") route the search and the
+        objects its results upgrade to through that session; with neither (and
+        no module default family) searches use stdlib ``urllib``."""
+        if session is None and resolve_family(family) is not None:
+            session = make_session(family)
+        self._session = session
         self.query: str = query
         self.preview: bool = preview
         self.thumbnail_url: str = thumbnail_url
@@ -166,7 +176,8 @@ class YoutubeSearch:
 
     def fetch_query(self, continuation: Optional[str] = None) -> dict:
         """Run the search (or fetch the next page) and return the raw response."""
-        result = _innertube_search(self.query, continuation)
+        result = _innertube_search(self.query, continuation, session=self._session) \
+            if self._session is not None else _innertube_search(self.query, continuation)
         if not self._initial_results:
             self._initial_results = result
         return result
@@ -196,6 +207,12 @@ class YoutubeSearch:
 
     def _iterate_and_parse(self, continuation: Optional[str] = None,
                            search_type: SearchType = SearchType.ALL) -> Iterator:
+        for r in self._parse_pages(continuation, search_type):
+            r._session = self._session
+            yield r
+
+    def _parse_pages(self, continuation: Optional[str] = None,
+                     search_type: SearchType = SearchType.ALL) -> Iterator:
         raw_results = self.fetch_query(continuation)
 
         try:
@@ -272,7 +289,7 @@ class YoutubeSearch:
                     yield VideoPreview(video_details['videoRenderer'])
 
         if next_continuation:
-            yield from self._iterate_and_parse(next_continuation, search_type)
+            yield from self._parse_pages(next_continuation, search_type)
 
     # ------------------------------------------------------------------
     # Typed result iterators
@@ -441,13 +458,25 @@ class YoutubeMusicSearch:
             print(album.title, album.year)
     """
 
-    def __init__(self, query: str) -> None:
+    def __init__(self, query: str, session: Optional[object] = None,
+                 family: Optional[str] = None) -> None:
+        """``session`` or ``family`` ("ipv4" / "ipv6") give this search its own
+        ``YTMusic`` client on that session instead of the shared singleton."""
+        if session is None and resolve_family(family) is not None:
+            from tutubo.ytmus import pinned_session
+            session = pinned_session(family)
         self.query: str = query
+        self._session = session
+        self._client = None
 
     def _ytmusic(self):
-        """Return the cached ``YTMusic`` client, or ``None`` if it failed to init."""
+        """Return the ``YTMusic`` client, or ``None`` if it failed to init."""
         from tutubo.ytmus import _get_ytmus
-        return _get_ytmus()
+        if self._session is None:
+            return _get_ytmus()
+        if self._client is None:
+            self._client = _get_ytmus(session=self._session)
+        return self._client
 
     def _raw_search(self, filter_type: Optional[str] = None) -> list:
         """Call ``YTMusic.search`` with the given filter, returning [] on failure."""
@@ -569,13 +598,14 @@ class YoutubeMusicSearch:
                 break
 
 
-def search_yt(query: str, as_dict: bool = True, parse: bool = False, max_res: int = 50) -> Iterator:
+def search_yt(query: str, as_dict: bool = True, parse: bool = False, max_res: int = 50,
+              session: Optional[object] = None, family: Optional[str] = None) -> Iterator:
     """Convenience generator: yield ``max_res`` search results for ``query``.
 
     With ``as_dict=True`` items come out as plain dicts (``.as_dict``).
     With ``parse=True`` previews are upgraded to full objects (extra HTTP per item).
     """
-    s = YoutubeSearch(query, preview=not parse)
+    s = YoutubeSearch(query, preview=not parse, session=session, family=family)
     for v in s.iterate_youtube(max_res=max_res):
         if as_dict:
             yield v.as_dict

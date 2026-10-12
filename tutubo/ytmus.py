@@ -15,14 +15,59 @@ from tutubo.models import YoutubePreview, Video
 
 _YTMUS: Optional[YTMusic] = None
 
+# ytmusicapi sets this timeout only on sessions it creates itself.
+_SESSION_TIMEOUT = 30
 
-def _get_ytmus(max_retries: int = 5) -> Optional[YTMusic]:
+
+def pinned_session(family: Optional[str]) -> object:
+    """Return a plain ``requests.Session`` pinned to ``family`` with ytmusicapi's timeout.
+
+    ytmusicapi only accepts ``requests.Session`` instances, so this does not
+    follow ``TUTUBO_TRANSPORT``.
+    """
+    import requests
+    from functools import partial
+    from tutubo.transport import FamilyAdapter, resolve_family
+    fam = resolve_family(family)
+    session = requests.Session()
+    if fam is not None:
+        adapter = FamilyAdapter(fam)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+    session.request = partial(session.request, timeout=_SESSION_TIMEOUT)
+    return session
+
+
+_PINNED_CLIENTS: dict = {}
+
+
+def _get_ytmus(max_retries: int = 5, session: Optional[object] = None) -> Optional[YTMusic]:
     """Return the cached YTMusic singleton, creating it on first call.
+
+    With ``session`` a new, uncached client bound to that session is returned.
+    With a default family set (``tutubo.transport.set_default_family``) a
+    client pinned to it is cached and returned instead.
 
     Retries on transient connection errors (rate-limiting, DNS hiccups).
     Returns None if all retries fail — callers must guard against this.
     """
     global _YTMUS
+    if session is not None:
+        for i in range(max_retries):
+            try:
+                return YTMusic(requests_session=session)
+            except Exception:
+                time.sleep(0.5 * (i + 1))
+        return None
+    from tutubo.transport import get_default_family
+    default = get_default_family()
+    if default is not None:
+        if default not in _PINNED_CLIENTS:
+            client = _get_ytmus(max_retries, session=pinned_session(default))
+            if client is None:
+                return None
+            _PINNED_CLIENTS[default] = client
+        return _PINNED_CLIENTS[default]
     if _YTMUS:
         return _YTMUS
     for i in range(max_retries):
@@ -389,9 +434,16 @@ class MusicArtist(YTMusicResult):
         }
 
 
-def search_yt_music(query: str, as_dict: bool = True, n_retries: int = 3):
-    """Convenience generator: search YT Music and yield wrappers (or dicts)."""
-    ytmusic = _get_ytmus(n_retries)
+def search_yt_music(query: str, as_dict: bool = True, n_retries: int = 3,
+                    session: Optional[object] = None, family: Optional[str] = None):
+    """Convenience generator: search YT Music and yield wrappers (or dicts).
+
+    ``session`` or ``family`` ("ipv4" / "ipv6") use a dedicated client on that session.
+    """
+    from tutubo.transport import resolve_family
+    if session is None and resolve_family(family) is not None:
+        session = pinned_session(family)
+    ytmusic = _get_ytmus(n_retries, session=session)
     for r in ytmusic.search(query):
         if r["resultType"] == "video":
             obj = MusicVideo(r)

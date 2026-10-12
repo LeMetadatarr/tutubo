@@ -10,6 +10,11 @@ from pathlib import Path
 from typing import List, Optional
 
 
+def _family_args(family: Optional[str]) -> List[str]:
+    from tutubo.transport import resolve_family
+    return {"ipv4": ["--force-ipv4"], "ipv6": ["--force-ipv6"]}.get(resolve_family(family), [])
+
+
 def _require_ytdlp() -> None:
     """Raise RuntimeError if the ``yt-dlp`` binary is not on PATH."""
     if not shutil.which("yt-dlp"):
@@ -19,7 +24,8 @@ def _require_ytdlp() -> None:
 
 
 def download(url: str, output_path: str = ".", audio_only: bool = False,
-             quality: Optional[str] = None, filename: Optional[str] = None) -> str:
+             quality: Optional[str] = None, filename: Optional[str] = None,
+             family: Optional[str] = None) -> str:
     """Download a YouTube video or audio track using yt-dlp.
 
     :param url:        YouTube watch URL.
@@ -28,6 +34,8 @@ def download(url: str, output_path: str = ".", audio_only: bool = False,
     :param quality:    Video quality hint, e.g. ``"720"``, ``"1080"``, ``"best"``.
                        Ignored when ``audio_only=True``.
     :param filename:   Output filename stem (without extension). Optional.
+    :param family:      ``"ipv4"`` / ``"ipv6"`` passes ``--force-ipv4`` / ``--force-ipv6``;
+                       defaults to :func:`tutubo.transport.set_default_family`.
     :returns:          Path to the downloaded file.
     """
     _require_ytdlp()
@@ -35,7 +43,7 @@ def download(url: str, output_path: str = ".", audio_only: bool = False,
 
     template = str(Path(output_path) / (f"{filename}.%(ext)s" if filename else "%(title)s.%(ext)s"))
 
-    cmd = ["yt-dlp", "--no-playlist", "-o", template]
+    cmd = ["yt-dlp", "--no-playlist", *_family_args(family), "-o", template]
 
     if audio_only:
         cmd += ["-x", "--audio-format", "mp3", "--audio-quality", "0"]
@@ -71,7 +79,8 @@ def download(url: str, output_path: str = ".", audio_only: bool = False,
 
 
 def download_playlist(playlist_url: str, output_path: str = ".",
-                      audio_only: bool = False, quality: Optional[str] = None) -> List[str]:
+                      audio_only: bool = False, quality: Optional[str] = None,
+                      family: Optional[str] = None) -> List[str]:
     """Download all videos in a playlist.
 
     :returns: List of downloaded file paths.
@@ -80,7 +89,7 @@ def download_playlist(playlist_url: str, output_path: str = ".",
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
     template = str(Path(output_path) / "%(playlist_index)s - %(title)s.%(ext)s")
-    cmd = ["yt-dlp", "-o", template]
+    cmd = ["yt-dlp", *_family_args(family), "-o", template]
 
     if audio_only:
         cmd += ["-x", "--audio-format", "mp3", "--audio-quality", "0"]
