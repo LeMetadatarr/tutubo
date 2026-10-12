@@ -1,6 +1,6 @@
-# Downloading Videos
+# Downloading videos
 
-Tutubo delegates downloading to **yt-dlp**, which handles YouTube's
+tutubo delegates downloading to **yt-dlp**, which handles YouTube's
 proof-of-origin token (`po_token`) requirement and stays maintained.
 
 ## Install
@@ -13,17 +13,13 @@ pip install yt-dlp
 
 ```python
 from tutubo.download import download, download_playlist
-
 # Download video (best quality, saves as .mp4)
 path = download("https://www.youtube.com/watch?v=EqQuihD0hoI")
-print(path)  # → ./Rob Zombie - Dragula.mp3
-
+print(path)  # -> ./Rob Zombie - Dragula.mp4
 # Audio only (mp3)
 path = download("https://www.youtube.com/watch?v=EqQuihD0hoI", audio_only=True)
-
 # Specific quality
 path = download("https://www.youtube.com/watch?v=EqQuihD0hoI", quality="720")
-
 # Custom output directory and filename
 path = download(
     "https://www.youtube.com/watch?v=EqQuihD0hoI",
@@ -31,7 +27,7 @@ path = download(
     filename="dragula",
     audio_only=True,
 )
-# → /music/dragula.mp3
+# -> /music/dragula.mp3
 ```
 
 ## With search
@@ -39,7 +35,6 @@ path = download(
 ```python
 from tutubo import YoutubeSearch
 from tutubo.download import download
-
 s = YoutubeSearch("black sabbath paranoid")
 v = next(s.iterate_videos(max_res=1))
 print(f"Downloading: {v.title}")
@@ -50,7 +45,6 @@ path = download(v.watch_url, output_path="/music", audio_only=True)
 
 ```python
 from tutubo.download import download_playlist
-
 paths = download_playlist(
     "https://www.youtube.com/playlist?list=PLBxwSF9JxLuJea2Hn2b_xw-3X7IAfBMZT",
     output_path="/music/rob_zombie",
@@ -62,7 +56,7 @@ for p in paths:
 
 ## API
 
-### `download(url, output_path=".", audio_only=False, quality=None, filename=None) → str`
+### `download(url, output_path=".", audio_only=False, quality=None, filename=None) -> str`
 
 | Parameter | Type | Description |
 |---|---|---|
@@ -74,6 +68,9 @@ for p in paths:
 
 Returns the path of the downloaded file.
 
-### `download_playlist(url, output_path=".", audio_only=False, quality=None) → list[str]`
+### `download_playlist(url, output_path=".", audio_only=False, quality=None) -> list[str]`
 
 Downloads all videos in a playlist. Returns a list of file paths.
+
+---
+[← Locale](locale.md) · [Home](index.md) · [Testing →](testing.md)

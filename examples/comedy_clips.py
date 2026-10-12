@@ -5,7 +5,7 @@ Channels: @ComedyCentral, @markiplier, @OverlySarcasticProductions
 Sorted by view count. Skips full specials and VODs (CONCERT / STAND_UP).
 """
 from tutubo.channel import Channel
-from tutubo.content_type import ContentType
+from tutubo import ContentType
 
 CHANNELS = [
     ("Comedy Central",               "https://www.youtube.com/@ComedyCentral/videos"),
@@ -33,7 +33,7 @@ for name, url in CHANNELS:
         if channel_hits >= 15:
             break
 
-hits.sort(reverse=True)
+hits.sort(reverse=True, key=lambda h: h[0])
 for views, channel, v in hits[:15]:
     print(f"  {views:>10,}  [{channel}]  {v.title}")
     print(f"             {v.watch_url}")

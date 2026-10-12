@@ -5,7 +5,7 @@ Channels: @PinkFongBabyShark
 Verifies KIDS classification and reports what slipped through the filter.
 """
 from tutubo.channel import Channel
-from tutubo.content_type import ContentType
+from tutubo import ContentType
 
 url = "https://www.youtube.com/@pinkfongbabyshark/videos"
 c = Channel(url)
@@ -24,9 +24,8 @@ for v in c.videos:
 
 print(f"Kids-safe feed — {len(safe)} videos\n" + "─" * 50)
 for v in safe[:10]:
-    mins, secs = divmod(v.length, 60)
-    dur = f"{mins}:{secs:02d}" if v.length else "live"
-    print(f"  {dur:>5}  {v.title}")
+    when = v.published_time or ("live" if v.is_live else "")
+    print(f"  {when:>14}  {v.title}")
 
 if flagged:
     print(f"\nClassified as something other than KIDS ({len(flagged)}):")

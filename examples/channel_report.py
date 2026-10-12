@@ -8,7 +8,8 @@ Usage:
 import sys
 from collections import Counter
 from tutubo.channel import Channel
-from tutubo.content_type import ContentType, extract_tags
+from tutubo import ContentType
+from mediavocab.text import extract_tags
 
 url = sys.argv[1] if len(sys.argv) > 1 else "https://www.youtube.com/@bbcnews/videos"
 
