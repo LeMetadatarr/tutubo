@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.5.0a1](https://github.com/LeMetadatarr/tutubo/tree/4.5.0a1) (2026-10-12)
+
+[Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.4.0a1...4.5.0a1)
+
+**Merged pull requests:**
+
+- feat: per-session IP address family for all requests [\#54](https://github.com/LeMetadatarr/tutubo/pull/54) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [4.4.0a1](https://github.com/LeMetadatarr/tutubo/tree/4.4.0a1) (2026-10-11)
 
 [Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.3.2a1...4.4.0a1)
