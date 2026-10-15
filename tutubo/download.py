@@ -6,8 +6,11 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from typing import List, Optional
+
+from tutubo import backoff
 
 
 def _family_args(family: Optional[str]) -> List[str]:
@@ -21,6 +24,19 @@ def _require_ytdlp() -> None:
         raise RuntimeError(
             "yt-dlp not found. Install it with: pip install yt-dlp"
         )
+
+
+def _run(cmd: List[str]) -> "subprocess.CompletedProcess":
+    """Run yt-dlp once. A pause the shared back-off holds stops it before it starts; a bot check in its output starts one."""
+    backoff.check("download")
+    started = time.time()
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        if backoff.failed("download", result.stderr):
+            raise backoff.paused("download")
+        raise RuntimeError(f"yt-dlp failed:\n{result.stderr}")
+    backoff.after_success("download", started)
+    return result
 
 
 def download(url: str, output_path: str = ".", audio_only: bool = False,
@@ -52,10 +68,7 @@ def download(url: str, output_path: str = ".", audio_only: bool = False,
         cmd += ["-f", fmt, "--merge-output-format", "mp4"]
 
     cmd.append(url)
-    result = subprocess.run(cmd, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        raise RuntimeError(f"yt-dlp failed:\n{result.stderr}")
+    result = _run(cmd)
 
     # Parse the output filename from yt-dlp's stdout
     for line in reversed(result.stdout.splitlines()):
@@ -98,10 +111,7 @@ def download_playlist(playlist_url: str, output_path: str = ".",
         cmd += ["-f", fmt, "--merge-output-format", "mp4"]
 
     cmd.append(playlist_url)
-    result = subprocess.run(cmd, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        raise RuntimeError(f"yt-dlp failed:\n{result.stderr}")
+    result = _run(cmd)
 
     paths = []
     for line in result.stdout.splitlines():
