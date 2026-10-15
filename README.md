@@ -188,6 +188,8 @@ To force IPv4 or IPv6 for one object, without touching process-wide state, pass 
 ## Documentation
 
 - [docs/index.md](docs/index.md): class index and overview
+- [docs/arrkit.md](docs/arrkit.md): the arrkit indexer and download client
+- [docs/backoff.md](docs/backoff.md): the shared bot-check pause
 - [docs/search.md](docs/search.md): `YoutubeSearch`, 24 factories, `YoutubeMusicSearch`
 - [docs/channel.md](docs/channel.md): `Channel`, `Playlist`, `Video`, `PodcastPreview`
 - [docs/models.md](docs/models.md): all model types with typed field reference

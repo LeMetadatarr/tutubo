@@ -290,3 +290,9 @@ def patch_ytmusic(monkeypatch):
     _fake = _FakeYTMusic()
     monkeypatch.setattr(_ym, "_YTMUS", _fake)
     monkeypatch.setattr(_ym, "_get_ytmus", lambda *a, **kw: _fake)
+
+
+@pytest.fixture(autouse=True)
+def _own_backoff_state(tmp_path, monkeypatch):
+    """Every test gets its own back-off folder, so a pause never leaks between tests or into the user's real one."""
+    monkeypatch.setenv("TUTUBO_STATE_DIR", str(tmp_path / "tutubo-state"))

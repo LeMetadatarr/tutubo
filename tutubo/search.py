@@ -9,6 +9,7 @@ from __future__ import annotations
 import enum
 from typing import Iterator, Optional
 
+from tutubo import backoff
 from tutubo._innertube import search as _innertube_search
 from tutubo.transport import make_session, resolve_family
 from tutubo.channel import Channel, Video, Playlist
@@ -484,7 +485,7 @@ class YoutubeMusicSearch:
         if ym is None:
             return []
         kwargs = {"filter": filter_type} if filter_type else {}
-        return ym.search(self.query, **kwargs)
+        return backoff.guarded("search", ym.search, self.query, **kwargs)
 
     # ------------------------------------------------------------------
     # Typed iterators — each hits the API with the appropriate filter
