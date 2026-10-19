@@ -119,6 +119,18 @@ for pod in c2.podcasts:
         break
 ```
 
+## Caption tracks
+
+```python
+from tutubo import list_caption_tracks, original_tracks
+
+tracks = list_caption_tracks("dQw4w9WgXcQ")
+for t in original_tracks(tracks):   # machine translations left out
+    print(t.language, t.kind, t.name)   # kind: "manual" or "asr"
+```
+
+Machine translations of a track are listed too, with `is_translation=True`; they are not transcripts of the audio. See [docs/captions.md](docs/captions.md).
+
 ## mediavocab integration
 
 mediavocab is a hard runtime dependency. It provides `classify_video()` (which returns a multi-axis `ClassificationResult`), `parse_title()`, `extract_tags()`, and the `Work` / `Release` / `Entity` data model. tutubo adds the `Category` search facet and the `classify_category()` collapse.
@@ -190,6 +202,7 @@ To force IPv4 or IPv6 for one object, without touching process-wide state, pass 
 - [docs/index.md](docs/index.md): class index and overview
 - [docs/search.md](docs/search.md): `YoutubeSearch`, 24 factories, `YoutubeMusicSearch`
 - [docs/channel.md](docs/channel.md): `Channel`, `Playlist`, `Video`, `PodcastPreview`
+- [docs/captions.md](docs/captions.md): `list_caption_tracks()`, `CaptionTrack`, manual vs automatic vs translated
 - [docs/models.md](docs/models.md): all model types with typed field reference
 - [docs/content_type.md](docs/content_type.md): `Category` facets and the `classify_category` collapse
 - [docs/mediavocab.md](docs/mediavocab.md): `to_work()` / `to_release()` bridge

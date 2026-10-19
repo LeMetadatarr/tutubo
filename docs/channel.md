@@ -200,6 +200,8 @@ v.as_dict         # dict
 
 `as_dict` keys: `videoId`, `url`, `title`, `image`, `is_live`, `views`, `published`, `description`, `duration_seconds`, `content_type`, `tags`.
 
+`v.caption_tracks()` fetches the video's watch page and returns its caption tracks (see [Caption tracks](captions.md)).
+
 ### Content type from channel context
 
 `Video.content_type` calls `classify_video()` with `channel_tags=self.channel_tags`. Because `channel_tags` are populated at construction time from `Channel.keywords`, even a video with a plain title can receive a specific content type when the channel itself carries strong tags.
