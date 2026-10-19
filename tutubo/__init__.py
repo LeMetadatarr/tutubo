@@ -3,6 +3,7 @@
 Public API:
     YoutubeSearch, YoutubeMusicSearch, SearchType, search_yt, search_yt_music
     Channel, Playlist, Video, PodcastPreview
+    CaptionTrack, CaptionError, list_caption_tracks, original_tracks
     Category, classify_category, classify_video, ClassificationResult, extract_tags
     TitleParseResult, parse_title
     download, download_playlist
@@ -17,6 +18,7 @@ function call (the locale system is stateless / thread-safe).
 """
 from tutubo.search import YoutubeSearch, YoutubeMusicSearch, SearchType, search_yt, search_yt_music
 from tutubo.channel import Channel, Playlist, Video, PodcastPreview
+from tutubo.captions import CaptionTrack, CaptionError, list_caption_tracks, original_tracks
 from tutubo.classification import Category, classify_category
 from mediavocab.text import (
     classify_video, extract_tags,
@@ -34,6 +36,7 @@ __all__ = [
     "YoutubeSearch", "YoutubeMusicSearch", "SearchType",
     "search_yt", "search_yt_music",
     "Channel", "Playlist", "Video", "PodcastPreview",
+    "CaptionError", "CaptionTrack", "list_caption_tracks", "original_tracks",
     "Category", "classify_category", "ContentType",
     "classify_video", "ClassificationResult", "extract_tags",
     "parse_title", "TitleParseResult",

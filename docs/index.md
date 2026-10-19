@@ -31,6 +31,7 @@ tutubo queries YouTube and YouTube Music search endpoints and channel pages, and
 - [Search API](search.md): `YoutubeSearch`, 24 factories, `YoutubeMusicSearch`
 - [Models reference](models.md): all preview types, `Video`, `MusicTrack`, `MusicAlbum`, and more
 - [Channel API](channel.md): `Channel`, `Playlist`, `PodcastPreview`, `Video`
+- [Caption tracks](captions.md): `list_caption_tracks()`, `Video.caption_tracks()`, `original_tracks()`
 - [Content classification](content_type.md): `Category` facets and the `classify_category` collapse
 - [mediavocab integration](mediavocab.md): the `to_work()` / `to_release()` / `to_entity()` bridge
 - [Transport](transport.md): pluggable session, `curl_cffi` stealth extra, `TUTUBO_TRANSPORT`

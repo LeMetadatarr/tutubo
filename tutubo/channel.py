@@ -160,6 +160,12 @@ class Video:
             "tags": self.tags,
         }
 
+    def caption_tracks(self, session: Optional[object] = None,
+                       family: Optional[str] = None) -> List["CaptionTrack"]:
+        """Caption tracks of this video, translations included (one watch-page request)."""
+        from tutubo.captions import list_caption_tracks
+        return list_caption_tracks(self.video_id, session=session, family=family)
+
     def __repr__(self) -> str:
         return f"<Video {self.video_id!r} title={self.title!r}>"
 

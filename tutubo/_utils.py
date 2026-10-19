@@ -56,7 +56,7 @@ class _HTMLParseError(Exception):
 def _find_object_from_startpoint(html: str, start: int) -> str:
     """Return the JS object/array literal starting at ``start`` in ``html``."""
     html = html[start:]
-    if html[0] not in ('{', '['):
+    if not html or html[0] not in ('{', '['):
         raise _HTMLParseError(f"Invalid start: {html[:20]!r}")
     closers = {'{': '}', '[': ']', '"': '"', '/': '/'}
     stack = [html[0]]
@@ -266,3 +266,15 @@ def duration_from_item(item: dict) -> Optional[int]:
                 if seconds is not None:
                     return seconds
     return None
+
+
+def player_response(html: str) -> dict:
+    """Extract ``ytInitialPlayerResponse`` from a YouTube watch page."""
+    for m in re.finditer(r"ytInitialPlayerResponse\s*=\s*", html):
+        try:
+            obj = _parse_object(html, m.end())
+        except _HTMLParseError:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    raise _HTMLParseError("ytInitialPlayerResponse not found in page HTML")
