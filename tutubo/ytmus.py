@@ -11,6 +11,7 @@ from typing import List, Optional
 
 from ytmusicapi import YTMusic
 
+from tutubo import backoff
 from tutubo.models import YoutubePreview, Video
 
 _YTMUS: Optional[YTMusic] = None
@@ -444,7 +445,7 @@ def search_yt_music(query: str, as_dict: bool = True, n_retries: int = 3,
     if session is None and resolve_family(family) is not None:
         session = pinned_session(family)
     ytmusic = _get_ytmus(n_retries, session=session)
-    for r in ytmusic.search(query):
+    for r in backoff.guarded("search", ytmusic.search, query):
         if r["resultType"] == "video":
             obj = MusicVideo(r)
         elif r["resultType"] == "song":
