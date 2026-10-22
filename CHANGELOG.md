@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.7.0a1](https://github.com/LeMetadatarr/tutubo/tree/4.7.0a1) (2026-10-22)
+
+[Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.6.0a1...4.7.0a1)
+
+**Merged pull requests:**
+
+- feat: one bot-check pause shared by every tutubo process on a machine [\#59](https://github.com/LeMetadatarr/tutubo/pull/59) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [4.6.0a1](https://github.com/LeMetadatarr/tutubo/tree/4.6.0a1) (2026-10-19)
 
 [Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.5.0a1...4.6.0a1)
