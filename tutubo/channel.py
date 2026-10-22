@@ -13,6 +13,7 @@ from typing import Iterable, List, Optional, Tuple
 
 from tutubo._utils import (channel_name, initial_data, get_ytcfg, DeferredGeneratorList,
                           duration_from_item)
+from tutubo import backoff
 from tutubo.transport import default_session, make_session
 
 logger = logging.getLogger(__name__)
@@ -200,13 +201,14 @@ class Playlist:
     def html(self) -> str:
         """Cached HTML of the playlist page (fetched on first access)."""
         if not self._html:
+            backoff.check("listing")
             resp = self._session.get(
                 self.playlist_url,
                 headers={**_YT_HEADERS, "Accept-Language": "en-US,en;q=0.9"},
                 cookies=_YT_COOKIES,
                 timeout=30,
             )
-            resp.raise_for_status()
+            backoff.after("listing", resp)
             self._html = resp.text
         return self._html
 
@@ -314,11 +316,12 @@ class Playlist:
     def _continuation_post(self, token: str) -> str:
         """POST a continuation token to the browse endpoint and return raw JSON text."""
         url = f"{_BROWSE_URL}?key={self.yt_api_key}"
+        backoff.check("listing")
         resp = self._session.post(url, json={
             "continuation": token,
             "context": _BROWSE_CONTEXT,
         }, timeout=30)
-        resp.raise_for_status()
+        backoff.after("listing", resp)
         return resp.text
 
     def _entry_generator(self) -> Iterable[Tuple[str, Optional[int]]]:
@@ -406,13 +409,14 @@ class Channel:
     def _get_html(self, url: str) -> str:
         """Fetch ``url`` (memoised per-instance) with consent cookies set."""
         if url not in self._html_cache:
+            backoff.check("listing")
             resp = self._session.get(
                 url,
                 headers={**_YT_HEADERS, "Accept-Language": self.language},
                 cookies=_YT_COOKIES,
                 timeout=30,
             )
-            resp.raise_for_status()
+            backoff.after("listing", resp)
             self._html_cache[url] = resp.text
         return self._html_cache[url]
 
@@ -528,12 +532,13 @@ class Channel:
     def _continuation_post(self, token: str) -> str:
         """POST a browse continuation; ``visitorData`` is required for newer feeds."""
         url = f"{_BROWSE_URL}?key={self.yt_api_key}"
+        backoff.check("listing")
         resp = self._session.post(url, json={
             "continuation": token,
             "context": _browse_context(self.language),
             **({"visitorData": self._visitor_data} if self._visitor_data else {}),
         }, timeout=30)
-        resp.raise_for_status()
+        backoff.after("listing", resp)
         return resp.text
 
     # ------------------------------------------------------------------

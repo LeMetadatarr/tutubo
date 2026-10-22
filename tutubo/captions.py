@@ -8,14 +8,19 @@ translation is not a transcript of the audio, so :class:`CaptionTrack` marks
 it and :func:`original_tracks` leaves it out.
 
 Every failure to read a video's tracks raises :class:`CaptionError`, so an
-empty list always means the video is playable and offers none.
+empty list always means the video is playable and offers none. The watch-page
+read is a ``details`` request of the shared back-off (:mod:`tutubo.backoff`):
+while that kind is paused, or when YouTube answers with a bot check, it raises
+:class:`tutubo.backoff.BackedOff` instead.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
+from tutubo import backoff
 from tutubo._utils import _HTMLParseError, player_response, video_id as _video_id
 from tutubo.transport import default_session, make_session
 
@@ -137,6 +142,55 @@ def original_tracks(tracks: List[CaptionTrack]) -> List[CaptionTrack]:
     return [t for t in tracks if not t.is_translation]
 
 
+def watch_player(video: str, session: Optional[object] = None,
+                 family: Optional[str] = None,
+                 language: str = "en-US,en;q=0.9") -> Tuple[str, dict]:
+    """``(video id, player response)`` read from the video's watch page: one
+    request of the back-off kind ``details``.
+
+    Raises :class:`tutubo.backoff.BackedOff` without sending anything while
+    ``details`` is paused, and after starting the pause when YouTube answers
+    with a bot check (HTTP 429, or a page that asks to confirm you are not a
+    bot). Raises :class:`CaptionError` when the page cannot be read.
+    """
+    from tutubo.channel import _YT_COOKIES, _YT_HEADERS
+    if session is None:
+        session = default_session() if family is None else make_session(family)
+    vid = _video_id(video) if "/" in video or "=" in video else video
+    backoff.check("details")
+    started = time.time()
+    try:
+        resp = session.get(
+            f"https://www.youtube.com/watch?v={vid}",
+            headers={**_YT_HEADERS, "Accept-Language": language},
+            cookies=_YT_COOKIES,
+            timeout=30,
+        )
+    except Exception as exc:
+        raise CaptionError(f"could not read the watch page of {vid}: {exc}") from exc
+    status = getattr(resp, "status_code", 200)
+    if status == 429 or (isinstance(status, int) and status >= 400
+                         and backoff.is_bot_check(getattr(resp, "text", ""))):
+        _bot_check(f"HTTP {status}")
+    try:
+        resp.raise_for_status()
+        player = player_response(resp.text)
+    except Exception as exc:
+        raise CaptionError(f"could not read the watch page of {vid}: {exc}") from exc
+    playability = player.get("playabilityStatus") if isinstance(player, dict) else None
+    if isinstance(playability, dict) and playability.get("status") != "OK":
+        reason = " ".join(str(playability.get(k) or "") for k in ("reason", "messages"))
+        if backoff.is_bot_check(reason):
+            _bot_check(reason)
+    backoff.after_success("details", started)
+    return vid, player
+
+
+def _bot_check(reason: str) -> None:
+    if backoff.failed("details", reason):
+        raise backoff.paused("details")
+
+
 def list_caption_tracks(video: str, session: Optional[object] = None,
                         family: Optional[str] = None,
                         language: str = "en-US,en;q=0.9") -> List[CaptionTrack]:
@@ -146,21 +200,7 @@ def list_caption_tracks(video: str, session: Optional[object] = None,
     and offers no captions (including captions disabled by the uploader).
     Raises :class:`CaptionError` when that cannot be told.
     """
-    from tutubo.channel import _YT_COOKIES, _YT_HEADERS
-    if session is None:
-        session = default_session() if family is None else make_session(family)
-    vid = _video_id(video) if "/" in video or "=" in video else video
-    try:
-        resp = session.get(
-            f"https://www.youtube.com/watch?v={vid}",
-            headers={**_YT_HEADERS, "Accept-Language": language},
-            cookies=_YT_COOKIES,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        player = player_response(resp.text)
-    except Exception as exc:
-        raise CaptionError(f"could not read the watch page of {vid}: {exc}") from exc
+    vid, player = watch_player(video, session=session, family=family, language=language)
     tracks = parse_caption_tracks(player)
     returned = (player.get("videoDetails") or {}).get("videoId")
     if returned != vid:

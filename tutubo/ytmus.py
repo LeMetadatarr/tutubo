@@ -11,6 +11,7 @@ from typing import List, Optional
 
 from ytmusicapi import YTMusic
 
+from tutubo import backoff
 from tutubo.models import YoutubePreview, Video
 
 _YTMUS: Optional[YTMusic] = None
@@ -335,13 +336,13 @@ def get_album(browse_id: str, playlist_id: str = "") -> dict:
     ytm = _get_ytmus()
     if playlist_id:
         try:
-            data = ytm.get_playlist(playlist_id)
+            data = backoff.guarded("search", ytm.get_playlist, playlist_id)
             data.setdefault("browseId", browse_id)
             data.setdefault("playlistId", playlist_id)
             return data
-        except Exception:
+        except Exception:  # a bot check here has paused "search", so the album call below raises BackedOff
             pass
-    data = ytm.get_album(browse_id)
+    data = backoff.guarded("search", ytm.get_album, browse_id)
     data.setdefault("browseId", browse_id)
     return data
 
@@ -444,29 +445,35 @@ def search_yt_music(query: str, as_dict: bool = True, n_retries: int = 3,
     if session is None and resolve_family(family) is not None:
         session = pinned_session(family)
     ytmusic = _get_ytmus(n_retries, session=session)
-    for r in ytmusic.search(query):
+    for r in backoff.guarded("search", ytmusic.search, query):
         if r["resultType"] == "video":
             obj = MusicVideo(r)
         elif r["resultType"] == "song":
             obj = MusicTrack(r)
         elif r["resultType"] == "album":
             try:
-                a = ytmusic.get_album(r["browseId"])
+                a = backoff.guarded("search", ytmusic.get_album, r["browseId"])
                 r.update(a)
+            except backoff.BackedOff:
+                raise
             except Exception:
                 continue
             obj = MusicAlbum(r)
         elif r["resultType"] == "playlist":
             try:
-                a = ytmusic.get_playlist(r.get("browseId", ""))
+                a = backoff.guarded("search", ytmusic.get_playlist, r.get("browseId", ""))
                 r.update(a)
+            except backoff.BackedOff:
+                raise
             except Exception:
                 continue
             obj = MusicPlaylist(r)
         elif r["resultType"] == "artist":
             try:
-                a = ytmusic.get_artist(r["browseId"])
+                a = backoff.guarded("search", ytmusic.get_artist, r["browseId"])
                 r.update(a)
+            except backoff.BackedOff:
+                raise
             except Exception:
                 continue
             obj = MusicArtist(r)
