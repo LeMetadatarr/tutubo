@@ -296,3 +296,10 @@ def patch_ytmusic(monkeypatch):
 def _own_backoff_state(tmp_path, monkeypatch):
     """Every test gets its own back-off folder, so a pause never leaks between tests or into the user's real one."""
     monkeypatch.setenv("TUTUBO_STATE_DIR", str(tmp_path / "tutubo-state"))
+
+
+def pytest_collection_modifyitems(items):
+    """A test id is printed on every verbose line; one that holds a megabyte of parametrized text stalls the CI log stream."""
+    long = [item.nodeid[:80] for item in items if len(item.nodeid) > 500]
+    if long:
+        raise pytest.UsageError(f"test ids longer than 500 characters, give the cases short ids: {long[:3]}")

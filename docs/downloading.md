@@ -3,6 +3,8 @@
 tutubo delegates downloading to **yt-dlp**, which handles YouTube's
 proof-of-origin token (`po_token`) requirement and stays maintained.
 
+For a speech corpus, use [`python -m tutubo.fetch`](fetch.md) instead: `audio_only=True` here converts to MP3, which is a lossy re-encode, while `tutubo.fetch` keeps the original track in its own codec and fetches its caption files.
+
 ## Install
 
 ```bash
