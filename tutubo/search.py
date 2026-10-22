@@ -7,8 +7,9 @@ typed previews / full objects.  ``YoutubeMusicSearch`` wraps the YT Music API
 from __future__ import annotations
 
 import enum
-from typing import Iterator, Optional
+from typing import Callable, Iterator, Optional
 
+from tutubo import backoff
 from tutubo._innertube import search as _innertube_search
 from tutubo.transport import make_session, resolve_family
 from tutubo.channel import Channel, Video, Playlist
@@ -430,6 +431,16 @@ class YoutubeSearch:
     def iterate_social_clips(self, max_res: int = -1) -> Iterator:
         return self._iter_ct("SOCIAL_CLIP", max_res)
 
+def _enrich(result: dict, call: Callable) -> None:
+    """Merge the detail ``call`` makes for ``result`` into it. A call that fails leaves ``result`` as it was; a bot check stops the search."""
+    try:
+        result.update(backoff.guarded("search", call, result["browseId"]))
+    except backoff.BackedOff:
+        raise
+    except Exception:
+        pass
+
+
 class YoutubeMusicSearch:
     """Search the YouTube Music catalogue (music.youtube.com).
 
@@ -484,7 +495,7 @@ class YoutubeMusicSearch:
         if ym is None:
             return []
         kwargs = {"filter": filter_type} if filter_type else {}
-        return ym.search(self.query, **kwargs)
+        return backoff.guarded("search", ym.search, self.query, **kwargs)
 
     # ------------------------------------------------------------------
     # Typed iterators — each hits the API with the appropriate filter
@@ -523,10 +534,7 @@ class YoutubeMusicSearch:
         for r in self._raw_search("albums"):
             if r.get("resultType") != "album":
                 continue
-            try:
-                r.update(ym.get_album(r["browseId"]))
-            except Exception:
-                pass
+            _enrich(r, ym.get_album)
             yield MusicAlbum(r)
             n += 1
             if 0 < max_res <= n:
@@ -539,10 +547,7 @@ class YoutubeMusicSearch:
         for r in self._raw_search("artists"):
             if r.get("resultType") != "artist":
                 continue
-            try:
-                r.update(ym.get_artist(r["browseId"]))
-            except Exception:
-                pass
+            _enrich(r, ym.get_artist)
             yield MusicArtist(r)
             n += 1
             if 0 < max_res <= n:
@@ -555,10 +560,7 @@ class YoutubeMusicSearch:
         for r in self._raw_search("playlists"):
             if r.get("resultType") != "playlist":
                 continue
-            try:
-                r.update(ym.get_playlist(r["browseId"]))
-            except Exception:
-                pass
+            _enrich(r, ym.get_playlist)
             yield MusicPlaylist(r)
             n += 1
             if 0 < max_res <= n:
@@ -573,22 +575,13 @@ class YoutubeMusicSearch:
             if rt in ("song", "video"):
                 obj = MusicTrack(r) if rt == "song" else MusicVideo(r)
             elif rt == "album":
-                try:
-                    r.update(ym.get_album(r["browseId"]))
-                except Exception:
-                    pass
+                _enrich(r, ym.get_album)
                 obj = MusicAlbum(r)
             elif rt == "playlist":
-                try:
-                    r.update(ym.get_playlist(r["browseId"]))
-                except Exception:
-                    pass
+                _enrich(r, ym.get_playlist)
                 obj = MusicPlaylist(r)
             elif rt == "artist":
-                try:
-                    r.update(ym.get_artist(r["browseId"]))
-                except Exception:
-                    pass
+                _enrich(r, ym.get_artist)
                 obj = MusicArtist(r)
             else:
                 continue

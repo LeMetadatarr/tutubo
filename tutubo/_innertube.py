@@ -14,6 +14,8 @@ from typing import Optional
 import requests
 from urllib import error as urllib_error, parse, request as urllib_request
 
+from tutubo import backoff
+
 logger = logging.getLogger(__name__)
 
 _RECORD_DIR = os.environ.get("TUTUBO_RECORD_DIR")
@@ -61,6 +63,7 @@ def _post(endpoint: str, params: dict, body: dict, session: Optional[object] = N
     ``TUTUBO_TRANSPORT`` has no effect on the call. With a ``requests``-style
     ``session`` the request goes through it (e.g. one pinned to an IP family).
     """
+    backoff.check("search")
     url = f"{_BASE_URL}/{endpoint}?{parse.urlencode(params)}"
     data = json.dumps(body).encode()
     if session is not None:
@@ -70,6 +73,7 @@ def _post(endpoint: str, params: dict, body: dict, session: Optional[object] = N
             result = resp.json()
         except _HTTP_ERRORS as e:
             code = getattr(getattr(e, "response", None), "status_code", None) or "error"
+            backoff.failed("search", f"HTTP {code}")
             raise RuntimeError(f"YouTube API returned HTTP {code} for {endpoint}") from e
         except _REQUEST_ERRORS as e:
             raise RuntimeError(f"Network error calling YouTube API: {e}") from e
@@ -79,9 +83,11 @@ def _post(endpoint: str, params: dict, body: dict, session: Optional[object] = N
             with urllib_request.urlopen(req, timeout=30) as resp:
                 result = json.loads(resp.read())
         except urllib_error.HTTPError as e:
+            backoff.failed("search", f"HTTP {e.code}")
             raise RuntimeError(f"YouTube API returned HTTP {e.code} for {endpoint}") from e
         except urllib_error.URLError as e:
             raise RuntimeError(f"Network error calling YouTube API: {e.reason}") from e
+    backoff.after_success("search")
     if _RECORD_DIR:
         query = body.get("query") or params.get("query") or body.get("continuation", "continuation")
         safe = re.sub(r"[^\w]", "_", query.lower())[:60]
