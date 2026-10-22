@@ -202,7 +202,7 @@ def test_it_can_be_turned_off(monkeypatch):
     ("ERROR: Sign in to confirm you’re not a bot", True), ("HTTP Error 429: Too Many Requests", True), ("HTTP 429", True),
     ("ERROR: [youtube] abc: This content isn't available, try again later. The current session has been rate-limited by YouTube for up to an hour.",
      True),
-    ("This content isn't available, try again later", True), ("This content isn’t available, try again later", True),
+    ("rate-limited by YouTube", True), ("This content isn't available, try again later", True), ("This content isn’t available, try again later", True),
     ("This content isn't available", False), ("try again later", False),
     ("ERROR: Video unavailable", False), ("HTTP 404", False), ("", False), (None, False)])
 def test_what_counts_as_a_bot_check(text, expected):
