@@ -171,7 +171,7 @@ def watch_player(video: str, session: Optional[object] = None,
     status = getattr(resp, "status_code", 200)
     if status == 429 or (isinstance(status, int) and status >= 400
                          and backoff.is_bot_check(getattr(resp, "text", ""))):
-        _bot_check(f"HTTP {status}")
+        _bot_check(f"HTTP {status} {getattr(resp, 'text', '')}")
     try:
         resp.raise_for_status()
         player = player_response(resp.text)
