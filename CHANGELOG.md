@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.8.0a1](https://github.com/LeMetadatarr/tutubo/tree/4.8.0a1) (2026-10-24)
+
+[Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.7.0a1...4.8.0a1)
+
+**Merged pull requests:**
+
+- feat: fetch a video's details, caption files and original audio for a corpus [\#60](https://github.com/LeMetadatarr/tutubo/pull/60) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [4.7.0a1](https://github.com/LeMetadatarr/tutubo/tree/4.7.0a1) (2026-10-22)
 
 [Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.6.0a1...4.7.0a1)
