@@ -37,5 +37,6 @@ tutubo queries YouTube and YouTube Music search endpoints and channel pages, and
 - [Transport](transport.md): pluggable session, `curl_cffi` stealth extra, `TUTUBO_TRANSPORT`
 - [Locale system](locale.md): `.voc` files, the `lang=` parameter, `MEDIAVOCAB_LANG`
 - [Downloading](downloading.md): `download()` and `download_playlist()` via yt-dlp
+- [Fetching for a corpus](fetch.md): `python -m tutubo.fetch`, original audio and caption files
 - [Back-off](backoff.md): the bot-check pause every tutubo caller on a machine shares
 - [Testing](testing.md): fixture-based offline test suite
