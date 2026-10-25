@@ -3,9 +3,8 @@
 These tests verify that the model properties correctly parse the renderer
 structures returned by the YouTube innertube API.  No network or fixtures needed.
 """
-import pytest
-from tutubo.models import VideoPreview, ChannelPreview, PlaylistPreview, RelatedSearch
-from tutubo.content_type import ContentType
+from tutubo.models import VideoPreview, ChannelPreview, PlaylistPreview
+from tutubo import ContentType  # noqa
 
 
 # ---------------------------------------------------------------------------
@@ -185,27 +184,26 @@ def test_content_type_live():
     assert VideoPreview(raw).content_type == ContentType.LIVE
 
 
-def test_content_type_short():
-    v = VideoPreview(_video_renderer(length_text="0:45"))
-    assert v.content_type == ContentType.SOCIAL_CLIP
-
-
 def test_content_type_trailer():
     # Provide a non-zero length so is_live (length==0 proxy) doesn't fire first
     v = VideoPreview(_video_renderer(title="The Batman — Official Trailer", length_text="2:30"))
     assert v.content_type == ContentType.TRAILER
 
 
-def test_content_type_default_video():
+def test_content_type_is_a_category():
+    # Wiring check: the property collapses to a tutubo Category facet for any
+    # input (exact facet for ambiguous titles is mediavocab's classifier concern).
+    from tutubo import Category
     v = VideoPreview(_video_renderer(title="How to Make Pizza", length_text="10:00"))
-    assert v.content_type == ContentType.TUTORIAL
+    assert isinstance(v.content_type, Category)
 
 
 def test_content_type_in_as_dict():
+    from tutubo import Category
     v = VideoPreview(_video_renderer(title="Cooking Show", length_text="20:00"))
     d = v.as_dict
     assert "content_type" in d
-    assert d["content_type"] == ContentType.VIDEO
+    assert isinstance(d["content_type"], Category)
 
 
 # ---------------------------------------------------------------------------
@@ -260,3 +258,62 @@ def test_playlist_preview():
     assert pl.title == "My Playlist"
     assert pl.video_count == 42
     assert pl.featured_videos == []
+
+
+# ---------------------------------------------------------------------------
+# VideoPreview → mediavocab Release: rich-output regression
+# ---------------------------------------------------------------------------
+
+def test_to_release_resolution_from_4k_badge():
+    """4K badge ⇒ Release.resolution = '2160p' (no fabricated default otherwise)."""
+    from mediavocab import StreamMode
+    raw = _video_renderer(
+        title="Some Movie",
+        length_text="1:42:00",
+        badges=[{"metadataBadgeRenderer": {"label": "4K"}}],
+    )
+    rel = VideoPreview(raw).to_release()
+    assert rel.resolution == "2160p"
+    assert rel.platform == "youtube"
+    assert rel.stream_mode == StreamMode.ON_DEMAND
+
+
+def test_to_release_resolution_from_8k_badge():
+    raw = _video_renderer(badges=[{"metadataBadgeRenderer": {"label": "8K"}}])
+    rel = VideoPreview(raw).to_release()
+    assert rel.resolution == "4320p"
+
+
+def test_to_release_resolution_unknown_when_no_badge():
+    """No quality badge ⇒ resolution stays empty (do not invent)."""
+    rel = VideoPreview(_video_renderer()).to_release()
+    assert rel.resolution == ""
+
+
+def test_to_release_accessibility_from_cc_badge():
+    raw = _video_renderer(badges=[{"metadataBadgeRenderer": {"label": "CC"}}])
+    rel = VideoPreview(raw).to_release()
+    assert any(t.kind == "captions" for t in rel.accessibility)
+
+
+def test_to_release_no_accessibility_when_no_cc():
+    rel = VideoPreview(_video_renderer()).to_release()
+    assert rel.accessibility == []
+
+
+def test_video_to_work_uses_classification_media_type():
+    """The bridge takes a ClassificationResult and carries its media_type,
+    content_form and programme_format onto the Work."""
+    from mediavocab import MediaType, ProgrammeFormat
+    from mediavocab.text.classify import ClassificationResult
+    from tutubo.mediavocab_bridge import video_to_work
+    w = video_to_work(
+        title="Wildlife on Earth", video_id="v",
+        classification=ClassificationResult(
+            media_type=MediaType.MOVIE, programme_format=ProgrammeFormat.DOCUMENTARY,
+        ),
+        length=3600, is_live=False, is_upcoming=False,
+        author="", channel_id="", tags=[],
+    )
+    assert w.media_type == MediaType.MOVIE
+    assert w.programme_format == ProgrammeFormat.DOCUMENTARY

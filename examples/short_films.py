@@ -6,7 +6,8 @@ These channels publish narrative short films — typically 5-30 minutes,
 free to watch, classified as SHORT_FILM or VIDEO.
 """
 from tutubo.channel import Channel
-from tutubo.content_type import ContentType, extract_tags
+from tutubo import ContentType
+from mediavocab.text import extract_tags
 
 CHANNELS = [
     ("Dust",    "https://www.youtube.com/@watchdust/videos"),
