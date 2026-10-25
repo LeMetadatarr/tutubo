@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.9.0a1](https://github.com/LeMetadatarr/tutubo/tree/4.9.0a1) (2026-10-25)
+
+[Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.8.0a1...4.9.0a1)
+
+**Merged pull requests:**
+
+- feat: arrkit indexer and download client for music, without depending on arrkit [\#63](https://github.com/LeMetadatarr/tutubo/pull/63) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [4.8.0a1](https://github.com/LeMetadatarr/tutubo/tree/4.8.0a1) (2026-10-24)
 
 [Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.7.0a1...4.8.0a1)
