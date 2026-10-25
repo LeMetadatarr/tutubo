@@ -20,6 +20,12 @@ dependencies = [
 test = ["pytest", "vcrpy", "pytest-vcr", "curl-cffi", "unblock_requests>=0.3.0a1"]
 stealth = ["curl-cffi", "unblock_requests>=0.3.0a1"]
 
+[project.entry-points."arrkit.indexers"]
+tutubo = "tutubo.arr:Tutubo"
+
+[project.entry-points."arrkit.clients"]
+tutubo = "tutubo.arr:TutuboClient"
+
 [project.urls]
 Homepage = "https://github.com/LeMetadatarr/tutubo"
 
