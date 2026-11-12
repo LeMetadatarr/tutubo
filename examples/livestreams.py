@@ -21,5 +21,5 @@ else:
 print("\nRecent livestreams (/@handle/streams tab):")
 for v in c.streams:
     status = "LIVE" if v.is_live else "recorded"
-    mins = v.length // 60 if v.length else 0
-    print(f"  [{status:8s}]  {mins:4d}m  {v.title}")
+    when = v.published_time or ""
+    print(f"  [{status:8s}]  {when:>14}  {v.title}")

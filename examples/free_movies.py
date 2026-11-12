@@ -4,7 +4,8 @@ Browse full-length movies available free on YouTube.
 Channels: @Mosfilm_eng (Soviet classics), @CultCinemaClassics, @moonflix_official
 """
 from tutubo.channel import Channel
-from tutubo.content_type import ContentType, extract_tags
+from tutubo import ContentType
+from mediavocab.text import extract_tags
 
 CHANNELS = [
     ("Mosfilm (English)",    "https://www.youtube.com/@Mosfilm_eng/videos"),

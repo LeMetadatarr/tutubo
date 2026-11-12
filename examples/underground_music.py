@@ -6,7 +6,8 @@ These channels publish full albums and premieres (MUSIC_AUDIO) and long mixes (V
 They're absent from YouTube Music — YouTube is the only way to find this content.
 """
 from tutubo.channel import Channel
-from tutubo.content_type import ContentType, extract_tags
+from tutubo import ContentType
+from mediavocab.text import extract_tags
 
 CHANNELS = [
     ("Stoned Meadow of Doom", "https://www.youtube.com/@StonedMeadowOfDoom/videos", "stoner doom"),

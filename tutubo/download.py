@@ -1,18 +1,47 @@
-"""Download YouTube videos/audio via yt-dlp."""
+"""Download YouTube videos/audio via yt-dlp.
+
+Thin subprocess wrapper around the ``yt-dlp`` CLI; ``yt-dlp`` must be on PATH.
+"""
+from __future__ import annotations
+
 import shutil
 import subprocess
+import time
 from pathlib import Path
+from typing import List, Optional
+
+from tutubo import backoff
 
 
-def _require_ytdlp():
+def _family_args(family: Optional[str]) -> List[str]:
+    from tutubo.transport import resolve_family
+    return {"ipv4": ["--force-ipv4"], "ipv6": ["--force-ipv6"]}.get(resolve_family(family), [])
+
+
+def _require_ytdlp() -> None:
+    """Raise RuntimeError if the ``yt-dlp`` binary is not on PATH."""
     if not shutil.which("yt-dlp"):
         raise RuntimeError(
             "yt-dlp not found. Install it with: pip install yt-dlp"
         )
 
 
+def _run(cmd: List[str]) -> "subprocess.CompletedProcess":
+    """Run yt-dlp once. A pause the shared back-off holds stops it before it starts; a bot check in its output starts one."""
+    backoff.check("download")
+    started = time.time()
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        if backoff.failed("download", result.stderr):
+            raise backoff.paused("download")
+        raise RuntimeError(f"yt-dlp failed:\n{result.stderr}")
+    backoff.after_success("download", started)
+    return result
+
+
 def download(url: str, output_path: str = ".", audio_only: bool = False,
-             quality: str = None, filename: str = None) -> str:
+             quality: Optional[str] = None, filename: Optional[str] = None,
+             family: Optional[str] = None) -> str:
     """Download a YouTube video or audio track using yt-dlp.
 
     :param url:        YouTube watch URL.
@@ -21,6 +50,8 @@ def download(url: str, output_path: str = ".", audio_only: bool = False,
     :param quality:    Video quality hint, e.g. ``"720"``, ``"1080"``, ``"best"``.
                        Ignored when ``audio_only=True``.
     :param filename:   Output filename stem (without extension). Optional.
+    :param family:      ``"ipv4"`` / ``"ipv6"`` passes ``--force-ipv4`` / ``--force-ipv6``;
+                       defaults to :func:`tutubo.transport.set_default_family`.
     :returns:          Path to the downloaded file.
     """
     _require_ytdlp()
@@ -28,7 +59,7 @@ def download(url: str, output_path: str = ".", audio_only: bool = False,
 
     template = str(Path(output_path) / (f"{filename}.%(ext)s" if filename else "%(title)s.%(ext)s"))
 
-    cmd = ["yt-dlp", "--no-playlist", "-o", template]
+    cmd = ["yt-dlp", "--no-playlist", *_family_args(family), "-o", template]
 
     if audio_only:
         cmd += ["-x", "--audio-format", "mp3", "--audio-quality", "0"]
@@ -37,10 +68,7 @@ def download(url: str, output_path: str = ".", audio_only: bool = False,
         cmd += ["-f", fmt, "--merge-output-format", "mp4"]
 
     cmd.append(url)
-    result = subprocess.run(cmd, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        raise RuntimeError(f"yt-dlp failed:\n{result.stderr}")
+    result = _run(cmd)
 
     # Parse the output filename from yt-dlp's stdout
     for line in reversed(result.stdout.splitlines()):
@@ -64,7 +92,8 @@ def download(url: str, output_path: str = ".", audio_only: bool = False,
 
 
 def download_playlist(playlist_url: str, output_path: str = ".",
-                      audio_only: bool = False, quality: str = None) -> list:
+                      audio_only: bool = False, quality: Optional[str] = None,
+                      family: Optional[str] = None) -> List[str]:
     """Download all videos in a playlist.
 
     :returns: List of downloaded file paths.
@@ -73,7 +102,7 @@ def download_playlist(playlist_url: str, output_path: str = ".",
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
     template = str(Path(output_path) / "%(playlist_index)s - %(title)s.%(ext)s")
-    cmd = ["yt-dlp", "-o", template]
+    cmd = ["yt-dlp", *_family_args(family), "-o", template]
 
     if audio_only:
         cmd += ["-x", "--audio-format", "mp3", "--audio-quality", "0"]
@@ -82,10 +111,7 @@ def download_playlist(playlist_url: str, output_path: str = ".",
         cmd += ["-f", fmt, "--merge-output-format", "mp4"]
 
     cmd.append(playlist_url)
-    result = subprocess.run(cmd, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        raise RuntimeError(f"yt-dlp failed:\n{result.stderr}")
+    result = _run(cmd)
 
     paths = []
     for line in result.stdout.splitlines():

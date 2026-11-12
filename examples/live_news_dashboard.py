@@ -6,7 +6,7 @@ Uses Channel.live (/@handle/live redirect) to check the current on-air stream.
 Uses Channel.streams (/@handle/streams tab) for the recent stream archive.
 """
 from tutubo.channel import Channel
-from tutubo.content_type import ContentType
+from tutubo import ContentType
 
 NEWS_CHANNELS = [
     ("Euronews EN",  "https://www.youtube.com/@euronews"),
@@ -35,8 +35,7 @@ for name, url in NEWS_CHANNELS:
     # Channel.streams → /@handle/streams tab — paginated list
     for i, v in enumerate(c.streams):
         status = "LIVE" if v.is_live else "recorded"
-        mins = v.length // 60 if v.length else 0
-        duration = f"{mins}m" if mins else "live"
-        print(f"    [{status:8s}] {duration:>5}  {v.title}")
+        when = v.published_time or ""
+        print(f"    [{status:8s}] {when:>14}  {v.title}")
         if i >= 4:
             break

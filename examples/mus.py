@@ -1,9 +1,14 @@
-from tutubo.ytmus import *
+from tutubo.ytmus import (
+    MusicAlbum,
+    MusicArtist,
+    MusicPlaylist,
+    search_yt_music,
+)
 
 
 def test_search(phrase):
     for v in search_yt_music(phrase, as_dict=False):
-        if isinstance(v, MusicPlaylist):
+        if isinstance(v, (MusicPlaylist, MusicArtist)):
             # albums / artists / playlists
             pl = [
                 {
@@ -18,7 +23,7 @@ def test_search(phrase):
             ]
             if pl:
                 if isinstance(v, MusicArtist):
-                    title = v.artist + " (Featured Tracks)"
+                    title = v.name + " (Featured Tracks)"
                 elif isinstance(v, MusicAlbum):
                     title = v.title + " (Full Album)"
                 elif isinstance(v, MusicPlaylist):
