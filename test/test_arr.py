@@ -669,3 +669,68 @@ def test_only_the_tail_of_a_huge_stderr_is_kept(tmp_path):
     file.write(b"x" * 200_000 + b"\nlast line\n")
     text = arr.stderr_tail(file, 1000)
     assert len(text) == 1000 and text.endswith("last line\n") and file.closed
+
+
+EVIL = ["aaaaaaaaaaa&list=PLx", "aaaaaaaaaaa#x", "aaaaaaaaaa\n", "-aaaaaaaaa\u00e9a", "../../etc/x", "aaaaaaaaaa", "aaaaaaaaaaaa", "aaaa&list=P", ""]
+
+
+def test_the_control_good_job_does_reach_yt_dlp(box):
+    c = box.client()
+    c.add(album_release())
+    run_all(c)
+    assert box.calls()
+
+
+@pytest.mark.parametrize("bad", EVIL)
+def test_an_album_track_that_is_not_a_video_id_is_refused_before_any_request(box, bad):
+    c = box.client()
+    release = album_release(tracks=[{"video_id": "aaaaaaaaaaa", "title": "ok", "track_number": 1},
+                                    {"video_id": bad, "title": "bad", "track_number": 2}])
+    with pytest.raises(fake_arrkit.ClientError):
+        c.add(release)
+    assert c.queue.load() == [] and run_all(c) == [] and box.calls() == []
+
+
+@pytest.mark.parametrize("kind", ["single", "video", "ep", "Track", "ALBUM", "album ", 5])
+def test_an_unknown_release_type_is_refused(box, kind):
+    c = box.client()
+    with pytest.raises(fake_arrkit.ClientError):
+        c.add({"release_type": kind, "video_id": "aaaaaaaaaaa&list=PLevil#frag", "title": "x"})
+    assert c.queue.load() == [] and box.calls() == []
+
+
+@pytest.mark.parametrize("bad", EVIL[:-1] + ["\u00e9" * 11])
+def test_a_single_track_id_must_be_ascii_word_characters_or_dash(box, bad):
+    c = box.client()
+    with pytest.raises(fake_arrkit.ClientError):
+        c.add({"release_type": "track", "video_id": bad})
+    assert c.queue.load() == []
+
+
+def test_ids_with_dashes_and_underscores_are_accepted(box):
+    c = box.client()
+    c.add({"release_type": "track", "video_id": "-_a-_A9-_a-", "title": "dash"})
+    (job,) = run_all(c)
+    assert job["files"] and "-_a-_A9-_a-" in box.calls()[0][-1]
+
+
+def test_an_album_track_that_is_a_plain_string_is_a_client_error(box):
+    with pytest.raises(fake_arrkit.ClientError):
+        box.client().add(album_release(tracks=["aaaaaaaaaaa"]))
+
+
+@pytest.mark.parametrize("bad", EVIL[:-1])
+def test_a_bad_id_listed_by_the_backend_never_reaches_yt_dlp(box, monkeypatch, bad):
+    album = dict(ALBUM, tracks=[{"videoId": "aaaaaaaaaaa", "title": "ok"}, {"videoId": bad, "title": "bad"}])
+    monkeypatch.setattr(FakeBackend, "album", lambda self, browse_id: album)
+    c = box.client()
+    c.add({"release_type": "album", "browse_id": "MPREb_1", "title": "A"})
+    (job,) = run_all(c)
+    assert box.calls() == [] and job["status"] != "Completed"
+
+
+def test_a_stored_job_with_a_bad_ref_never_reaches_yt_dlp(box):
+    c = box.client()
+    jid = c.queue.add("aaaaaaaaaaa&list=PLevil#frag", "stored", "*", 0, own_folder=True, release_type="track")
+    (job,) = run_all(c)
+    assert box.calls() == [] and job["id"] == jid and not job.get("files")
