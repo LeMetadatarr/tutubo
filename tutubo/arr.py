@@ -94,6 +94,9 @@ def stderr_tail(file, keep=STDERR_BYTES):
         return file.read().decode("utf-8", "replace")
 
 
+VIDEO_ID = re.compile(r"[A-Za-z0-9_-]{11}")
+
+
 def cut(text, limit=NAME_BYTES):
     """``text`` as a file name stem of at most ``limit`` bytes of UTF-8, cut between characters."""
     text = safe(text) or "track"
@@ -378,10 +381,14 @@ class ClientPlugin:
 
     def add(self, release):
         kind = release.get("release_type") or ("album" if release.get("browse_id") else "track")
+        if kind not in ("album", "track"):
+            raise self.Error(f"unknown release type {str(kind)[:40]!r}")
         if kind == "album" and not (release.get("browse_id") or release.get("tracks")):
             raise self.Error("the release names no album")
-        if kind == "track" and not re.fullmatch(r"[\w-]{11}", str(release.get("video_id") or "")):
+        if kind == "track" and not VIDEO_ID.fullmatch(str(release.get("video_id") or "")):
             raise self.Error("the release names no YouTube video")
+        if kind == "album" and any(not isinstance(t, dict) or not VIDEO_ID.fullmatch(str(t.get("video_id") or "")) for t in release.get("tracks") or ()):
+            raise self.Error("the release lists a track that is not a YouTube video")
         self.folder()
         extra = {k: release.get(k) for k in ("release_type", "video_id", "browse_id", "tracks", "artist", "album", "track", "track_number", "year")}
         extra["release_type"] = kind
@@ -462,7 +469,8 @@ class ClientPlugin:
         """[{video_id, title, track_number, artist, album, year}] to download for a job."""
         base = {k: job.get(k) for k in ("artist", "album", "year")}
         if job.get("release_type") != "album":
-            return [base | {"video_id": job["ref"], "title": job.get("track") or job["title"], "track_number": job.get("track_number")}]
+            listed = [{"video_id": job["ref"], "title": job.get("track") or job["title"], "track_number": job.get("track_number")}]
+            return self.checked(base, listed)
         listed = job.get("tracks") or []
         if not listed:
             pace(self.num("delay", 3))
@@ -471,6 +479,12 @@ class ClientPlugin:
                       for i, t in enumerate(raw.get("tracks") or (), 1) if t.get("videoId")]
         if not listed:
             raise self.Error("YouTube Music lists no track for this album")
+        return self.checked(base, listed)
+
+    def checked(self, base, listed):
+        """The tracks to download, each with a well-formed video id."""
+        if any(not isinstance(t, dict) or not VIDEO_ID.fullmatch(str(t.get("video_id"))) for t in listed):
+            raise self.Error("a listed track is not a YouTube video")
         return [base | {"video_id": t["video_id"], "title": t["title"], "track_number": t.get("track_number") or i}
                 for i, t in enumerate(listed, 1)]
 
