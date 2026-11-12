@@ -39,5 +39,6 @@ tutubo queries YouTube and YouTube Music search endpoints and channel pages, and
 - [Downloading](downloading.md): `download()` and `download_playlist()` via yt-dlp
 - [Fetching for a corpus](fetch.md): `python -m tutubo.fetch`, original audio and caption files
 - [Use from an arrkit app](arrkit.md): the `tutubo` indexer and download client, music first
+- [Channel feed](feed.md): the latest uploads of a channel in one request
 - [Back-off](backoff.md): the bot-check pause every tutubo caller on a machine shares
 - [Testing](testing.md): fixture-based offline test suite

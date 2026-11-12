@@ -203,6 +203,7 @@ To force IPv4 or IPv6 for one object, without touching process-wide state, pass 
 - [docs/arrkit.md](docs/arrkit.md): the arrkit indexer and download client
 - [docs/backoff.md](docs/backoff.md): the shared bot-check pause
 - [docs/fetch.md](docs/fetch.md): audio, captions and details of a video for a corpus
+- [docs/feed.md](docs/feed.md): the latest uploads of a channel in one request
 - [docs/search.md](docs/search.md): `YoutubeSearch`, 24 factories, `YoutubeMusicSearch`
 - [docs/channel.md](docs/channel.md): `Channel`, `Playlist`, `Video`, `PodcastPreview`
 - [docs/captions.md](docs/captions.md): `list_caption_tracks()`, `CaptionTrack`, manual vs automatic vs translated
