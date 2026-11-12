@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.9.1a1](https://github.com/LeMetadatarr/tutubo/tree/4.9.1a1) (2026-11-12)
+
+[Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.9.0a1...4.9.1a1)
+
+**Merged pull requests:**
+
+- fix: refuse album tracks whose id is not a video id [\#65](https://github.com/LeMetadatarr/tutubo/pull/65) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [4.9.0a1](https://github.com/LeMetadatarr/tutubo/tree/4.9.0a1) (2026-10-25)
 
 [Full Changelog](https://github.com/LeMetadatarr/tutubo/compare/4.8.0a1...4.9.0a1)
